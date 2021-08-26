@@ -1,0 +1,13 @@
+name = "VecchiaFactorization"
+uuid = "766796f2-a851-4db4-b814-5102eb0274c5"
+authors = ["Ethan Anderes <anderes@ucdavis.edu> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.6"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
