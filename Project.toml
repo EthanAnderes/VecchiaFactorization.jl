@@ -3,6 +3,12 @@ uuid = "766796f2-a851-4db4-b814-5102eb0274c5"
 authors = ["Ethan Anderes <anderes@ucdavis.edu> and contributors"]
 version = "0.1.0"
 
+[deps]
+BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+BlockBandedMatrices = "ffab5731-97b5-5995-9138-79e8c1846df0"
+FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
 [compat]
 julia = "1.6"
 
