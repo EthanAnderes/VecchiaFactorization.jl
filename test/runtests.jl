@@ -2,7 +2,9 @@ using LinearAlgebra
 BLAS.set_num_threads(1)
 using VecchiaFactorization
 using BlockArrays
+using Random
 using Test
+
 
 @testset "VecchiaFactorization.jl" begin
     # Write your tests here.
@@ -14,69 +16,134 @@ using Test
     nblocks, blocksz = 6, 150
     bsn    = fill(blocksz, nblocks) 
     n      = sum(bsn)
-    x      = sort(vcat(range(0,4,length=n-100), 4*rand(100)))
-    xb     = blocks(PseudoBlockArray(x, bsn))
-    Σ₀     = [ K.(xb[i],   xb[i]', θtru) for i = 1:nblocks ]
-    Σ₋₁    = [ K.(xb[i+1], xb[i]', θtru) for i = 1:nblocks-1 ]
-    R      = [ - (Σ₋₁[i] / Σ₀[i]) for i = 1:nblocks-1 ]
-    tailM₀ = [ Σ₀[i+1] + R[i] * Σ₋₁[i]' for i = 1:nblocks-1 ]
-    M      = [ Σ₀[1], tailM₀... ]
+    x    = vcat(range(0,4,length=n-100), 4*rand(100))
+    prm  = sortperm(x)
 
-    # Σ     = BlockArray(K.(x, x', θtru), bsn, bsn)
-    # D0    = Matrix.(fill(Eye{Float64}(blocksz),  nblocks))
-    # Dm1   = Matrix.(fill(Zeros{Float64}(blocksz,blocksz), nblocks-1))
-    # R′    = BlockBidiagonal(D0, Dm1,:L)
-    # M′ = BlockDiagonal(Matrix.(fill(Zeros{Float64}(blocksz,blocksz), nblocks)))
-    # view(M′, Block(1,1)) .= Σ[Block(1,1)]
-    # for i in 2:nblocks
-    #     bii  = Block(i,i)
-    #     bimi = Block(i,i-1)
-    #     A = - Σ[Block(i,i-1)] / Σ[Block(i-1,i-1)]
-    #     view(R′, Block(i,i-1))     .= A
-    #     view(M′, Block(i,i)) .= Σ[Block(i,i)] + A * Σ[Block(i,i-1)]'
-    # end 
-    # R = [R′[Block(i,i-1)] for i in 2:nblocks]
-    # M = [M′[Block(i,i)] for i in 1:nblocks]
+    Σ     = PseudoBlockArray(K.(x, x', θtru), bsn, bsn)
+    # V     = Vecchia(Matrix(Σ), bsn)
+    V     = Vecchia(;
+        diag_blocks=[Σ[Block(i,i)] for i = 1:nblocks],
+        subdiag_blocks=[Σ[Block(i+1,i)] for i = 1:nblocks-1],
+    )
+    Vᴾ    = VecchiaPivoted(Vecchia(Σ[prm,prm], bsn), prm)
+    matV  = Matrix(V)
+    matVᴾ = Matrix(Vᴾ)
 
-    V      = Vecchia(R, M, bsn)
-    iV     = InvVecchia(R, inv.(M), bsn)
-    iV′    = inv(V)
+    v    = randn(size(V,1))
+    Σv   = Σ * v
+    Σv1  = V * v
+    Σv2  = matV * v
+    Σv3  = Vᴾ * v
+    Σv4  = matVᴾ * v
 
-    matRᴴ = VecchiaFactorization.Rᴴmat(V)
-    matR  = VecchiaFactorization.Rmat(V)
+    @test Σv1 ≈ Σv2 rtol=1e-5
+    @test Σv3 ≈ Σv4 rtol=1e-5
 
-    matV   = Matrix(V)
-    imatV  = Matrix(iV)
-    imatV′ = Matrix(iV′)
-    
+    #=
+    using BenchmarkTools
+    v  = randn(size(V,1))
+    vv = randn(size(V,1), 500)
+
+    @benchmark V * v    # 49μs
+    @benchmark V * vv   # 24ms
+    @benchmark Vᴾ * v   # 54 μs
+    @benchmark Vᴾ * vv  # 27 ms
+
+    @benchmark Σ * v    # 93 μs
+    @benchmark Σ * vv   # 13 ms (this must be faster due to optimized BLAS)
+    =#
+
+
+
     #=
     using PyPlot
+
+    fig, ax = subplots(2)
+    ax[1].semilogy(eigen(Symmetric(matV)).values,label="matV eigen")
+    ax[1].semilogy(eigen(Symmetric(Matrix(Σ))).values,"--",label="Σ eigen")
+    ax[1].legend()
+
+    ax[2].semilogy(eigen(Symmetric(matVᴾ)).values,label="matVᴾ eigen")
+    ax[2].semilogy(eigen(Symmetric(Matrix(Σ))).values,"--",label="Σ eigen")
+    ax[2].legend()
+    =# 
+
+
+    #=
+    using PyPlot
+
+    fig, ax = subplots(2)
+    ax[1].plot(Σv1,label="Σv1")
+    ax[1].plot(Σv ,"--",label="Σv")
+    ax[1].legend()
+
+    ax[2].plot(Σv3,label="Σv3")
+    ax[2].plot(Σv ,"--",label="Σv")
+    ax[2].legend()
+    =# 
+
+    iΣ    = inv(Σ)
+    iV    = inv(V)
+    iVᴾ   = inv(Vᴾ)
+    matiV  = Matrix(iV)
+    matiVᴾ = Matrix(iVᴾ)
+
+    v   = randn(size(V,1))
+    Σv  = Σ * v
+    w   = iΣ * Σv
+    w1  = iV * Σv
+    w2  = matiV * Σv
+    w3  = iVᴾ * Σv
+    w4  = matiVᴾ * Σv
+
+    @test w1 ≈ w2 rtol=1e-5
+    @test w3 ≈ w4 rtol=1e-5
+
+
+    #=
+    using PyPlot
+
+    fig, ax = subplots(2)
+    ax[1].plot(w1,label="w1")
+    ax[1].plot(w ,"--",label="w")
+    ax[1].legend()
+
+    ax[2].plot(w3,label="w3")
+    ax[2].plot(w ,"--",label="w")
+    ax[2].legend()
+    =# 
+
+
+    invcholΣ = inv(cholesky(Hermitian(Σ,:L)).L)
+    invcholV = VecchiaFactorization.inv_cholesky(V)
+    invcholVᴾ = VecchiaFactorization.inv_cholesky(Vecchia(Vᴾ.R,Vᴾ.M, Vᴾ.bsds)) # [invperm(Vᴾ.piv), invperm(Vᴾ.piv)]
+
+    #=
+    using PyPlot
+    v = randn(size(V,1))
+
+    (invcholV \ v)[prm] |> plot
+    (invcholVᴾ \ v[prm]) |> plot
+    (invcholΣ \ v)[prm] |> plot
+    =#
+
+
+
+    #=
+    using PyPlot
+
+    ## matRᴴ = VecchiaFactorization.Rᴴmat(V)
+    ## matR  = VecchiaFactorization.Rmat(V)
+
     matV    |> matshow; colorbar()
-    truV = K.(x, x', θtru) 
-    truV  |> matshow; colorbar()
-    (matV - truV)  |> matshow; colorbar()
+    Σ  |> matshow; colorbar()
+    (matV - Σ)  |> matshow; colorbar()
     
     imatV   .|> abs .|> log |> matshow; colorbar()
 
     matRᴴ   .|> abs .|> log |> matshow; colorbar()
     matR    .|> abs .|> log |> matshow; colorbar()
     =#
-    
-    v = randn(size(V,1))
-
-    v1 = V * v
-    v2 = iV * v
-
-    v1′ = matV * v
-    v2′ = imatV * v
-
-    @test v1 ≈ v1′ rtol=1e-5
-    @test v2 ≈ v2′ rtol=1e-5
-
-    #=
-    abs.(v1 .- v1′) |> plot
-    abs.(v2 .- v2′) |> plot
-    =# 
 
     #= 
     using BenchmarkTools
@@ -95,3 +162,32 @@ using Test
     =#
 
 end
+
+
+
+@testset "Vecchia approx inversion" begin
+
+    K(x,y,θ) = exp(- θ * abs(x - y) ^ 0.8 )
+    θtru    = 0.2
+    nblocks, blocksz = 50, 50
+    bsn    = fill(blocksz, nblocks) 
+    n      = sum(bsn)
+    x      = sort(vcat(range(0,4,length=n-100), 4*rand(100)))
+
+    Σ  = K.(x, x', θtru)
+    iΣ = inv(Σ) 
+    V  = Vecchia(Σ,bsn) 
+    iV = inv(V)  
+
+    IVapx = hcat(map(x->iV*x, eachcol(Σ))...)
+
+    using PyPlot
+    fig, ax = subplots(2)
+    ax[1].plot(real.(eigen(IVapx).values))
+    ax[1].plot(zeros(size(IVapx,1)),":k")
+    ax[2].plot(imag.(eigen(IVapx).values))
+    ax[2].plot(zeros(size(IVapx,1)),":k")
+     
+end
+
+
