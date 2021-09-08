@@ -1,9 +1,104 @@
 using LinearAlgebra
 BLAS.set_num_threads(1)
 using VecchiaFactorization
+import VecchiaFactorization as VF
 using BlockArrays
 using Random
 using Test
+using LBblocks
+
+
+@testset "Ridiagonal and Qidiagonal" begin 
+
+    @sblock let 
+        bs = [2, 4, 3]
+        @test VF.Rsizes_from_blocksides(bs) == [(4,2), (3,4)]
+        @test VF.Qsizes_from_blocksides(bs) == [(2,4), (4,3)]
+        
+        ## Ri = Ridiagonal([randn(4,2), randn(3,4)])
+        ## Qi = Qidiagonal([rand(2,4),  rand(4,3)])
+        Ri = rand(Ridiagonal{Float64}, bs)
+        Qi = rand(Qidiagonal{Float64}, bs)
+
+        @test VF.diag_block_dlengths(Ri) == [2,4,3]
+        @test VF.diag_block_dlengths(Qi) == [2,4,3]
+        @test size(Ri) == (9,9)
+        @test size(Qi) == (9,9)
+        @test (size(Ri,1), size(Ri,2)) == size(Ri)
+        @test (size(Qi,1), size(Qi,2)) == size(Qi)
+
+    end
+
+
+    @sblock let 
+        ## bs = vcat(fill(60,7), fill(80,10))
+        ## bs = fill(80,20)
+        ## bs = [2, 4, 3]
+        bs = fill(10,20)
+        ## bs = fill(10,200)
+
+        Ri = randn(Ridiagonal{Float64}, bs)
+        Qi = randn(Qidiagonal{Float64}, bs)
+
+        v = rand(Float64, sum(bs))
+
+        @inferred Ri * v
+        @inferred Ri' * v
+        @inferred Ri \ v 
+        @test (Ri \ v) ≈ ldiv!(Ri, copy(v)) rtol = 1e-10
+        @inferred Qi * v
+        @inferred Qi' * v
+        @inferred Qi \ v 
+        @test (Qi \ v) ≈ ldiv!(Qi, copy(v)) rtol = 1e-10
+
+        ## -----
+        # x = 1:size(Ri,1)
+        # v = zero(x); 
+        # for i = 1:2  # it is strange how unstable this inversion is 
+        #     v[rand(x)] = 1
+        # end
+        ## -----
+        ## τ = 10; v = sin.(τ .* 2 .* π .* x ./ x[end])
+        ## -----
+        v = rand(Float64, sum(bs))
+        ## -----
+        v1 = Ri \ (Ri * v)
+        v2 = Qi \ (Qi * v)
+        w1 = Ri * (Ri \ v)
+        w2 = Qi * (Qi \ v)
+        @test v ≈ v1 rtol=1e-5
+        @test v ≈ v2 rtol=1e-5
+        @test v ≈ w1 rtol=1e-5
+        @test v ≈ w2 rtol=1e-5
+
+
+    end
+
+
+
+    #=
+        using BenchmarkTools
+
+        bs = fill(50,20)        
+        Ri = randn(Ridiagonal{Float64}, bs)
+        Qi = randn(Qidiagonal{Float64}, bs)
+        v  = randn(size(Ri,1))
+        M = randn(size(Ri,1), size(Ri,1))
+        @benchmark Ri * v  # 9 μs
+        @benchmark Qi * v  # 9 μs
+        @benchmark Ri' * v # 9 μs
+        @benchmark Qi' * v # 9 μs
+
+        @benchmark Ri \ v  # 9 μs
+        @benchmark Qi \ v  # 9 μs
+        @benchmark Ri' \ v # 9 μs
+        @benchmark Qi' \ v # 9 μs
+
+
+        @benchmark M * v # 112 μs
+    =#
+
+end
 
 
 @testset "VecchiaFactorization.jl" begin

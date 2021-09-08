@@ -1,12 +1,17 @@
 module VecchiaFactorization
 
 using LinearAlgebra # BLAS.set_num_threads(1)
-using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block, blocks, blocksizes 
+using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block, blocks, blocksizes,
+blockedrange, findblockindex, blockindex 
 using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal
 using FillArrays
 ## using ArrayLayouts
 
 export Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted
+
+include("ri_qi_diag.jl")
+export Ridiagonal, Qidiagonal
+
 
 # Make a Vecchia Struct
 # ===============================
@@ -132,6 +137,18 @@ function _vecclmul!(R::Vector{RT}, M::Vector{MT}, bsds::Vector{Int}, W::Abstract
 	return W 
 end
 
+## TODO: eventually make somethine like an R matrix type and Q matrix type (Q = R')
+## for now I'm just making an internal method for it but eventually this will be
+## removed ...
+function _Rldiv!(R::Vector{RT}, bsds::Vector{Int}, w::AbstractVector) where {T, RT<:AbstractMatrix{T}}
+	wbB = blocks(PseudoBlockArray(w, bsds))
+	nb  = length(bsds)
+	## inv(R) * q
+	for i in 1:nb-1
+		mul!(wbB[i+1], R[i], wbB[i], -1, true)		
+	end
+	return w
+end
 
 # InvVecchia: internal methods for left mult
 # ============================
