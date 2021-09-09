@@ -1,14 +1,14 @@
-# Ridiagonal and Qidiagonal matrices 
+# Midiagonal, Ridiagonal and Qidiagonal matrices 
 
-import LinearAlgebra: mul!, lmul!, ldiv!, \,  *
-import Base: size, getindex, replace_in_print_matrix, rand, randn
 
 """
 Q <: Qidiagonal ≡ QₙQₙ₋₁ ⋯ Q₂ is block bidiagonal on supdiagonal
 R <: Ridiagonal ≡ R₂ ⋯ RₙRₙ₋₁ is block bidiagonal on subdiagonal
+M <: Midiagonal ≡ block_diag(M₁, ⋯ ,Mₙ) is block diagonal
 
 with Q.data == [Q₂, …, Qₙ₋₁, Qₙ] and 
 with R.data == [R₂, …, Rₙ₋₁, Rₙ]
+with M.data == [M₁, ⋯ ,Mₙ]
 """
 
 struct Ridiagonal{T,M<:AbstractMatrix{T}} <: AbstractMatrix{T}
@@ -19,70 +19,73 @@ struct Qidiagonal{T,M<:AbstractMatrix{T}} <: AbstractMatrix{T}
     data::Vector{M} # sup diagonal matrices stored along the last dimension
 end
 
+struct Midiagonal{T,M<:AbstractMatrix{T}} <: AbstractMatrix{T}
+    data::Vector{M} # diagonal matrices stored along the last dimension
+end
+
 
 Ridiagonal(A::Ridiagonal) = A
 Qidiagonal(A::Qidiagonal) = A
+Midiagonal(A::Midiagonal) = A
 Ridiagonal{T}(A::Ridiagonal{T}) where {T} = A
 Qidiagonal{T}(A::Qidiagonal{T}) where {T} = A
+Midiagonal{T}(A::Midiagonal{T}) where {T} = A
 Ridiagonal{T}(A::Ridiagonal) where {T} = Ridiagonal{T}(A.data)
 Qidiagonal{T}(A::Qidiagonal) where {T} = Qidiagonal{T}(A.data)
+Midiagonal{T}(A::Midiagonal) where {T} = Midiagonal{T}(A.data)
 
-const RiOrQi{T,M} = Union{Ridiagonal{T,M}, Qidiagonal{T,M}}
+const RiQi{T,M} = Union{Ridiagonal{T,M}, Qidiagonal{T,M}}
+const MiRiQi{T,M} = Union{Midiagonal{T,M}, Ridiagonal{T,M}, Qidiagonal{T,M}}
 
 # ============================
 
-Rsizes_from_blocksides(bs::Vector{Int}) = [(bs[i+1],bs[i]) for i=1:length(bs)-1]
-Qsizes_from_blocksides(bs::Vector{Int}) = [(bs[i], bs[i+1]) for i=1:length(bs)-1]
+sizes_from_blocksides(::Type{<:Midiagonal}, bs::Vector{Int}) = [(bs[i],bs[i]) for i=1:length(bs)]
+sizes_from_blocksides(::Type{<:Ridiagonal}, bs::Vector{Int}) = [(bs[i+1],bs[i]) for i=1:length(bs)-1]
+sizes_from_blocksides(::Type{<:Qidiagonal}, bs::Vector{Int}) = [(bs[i], bs[i+1]) for i=1:length(bs)-1]
 
-nblocks(RQ::RiOrQi) = length(RQ.data)+1
+nblocks(M::Midiagonal) = length(M.data)
+nblocks(RQ::RiQi) = length(RQ.data)+1
+
+diag_block_dlengths(M::Midiagonal) = size.(M.data, 1)
 
 function diag_block_dlengths(Q::Qidiagonal)
     bs = size.(Q.data, 1)
     append!(bs, size(Q.data[end],2))
 end 
+
 function diag_block_dlengths(R::Ridiagonal)
     bs = size.(R.data, 2)
     append!(bs, size(R.data[end],1))
 end 
 
 # used to prep incoming arrays for lmul! or ldiv!
-function _pblock_array(RQ::RiOrQi, w::AbstractVector)
-    bs  = diag_block_dlengths(RQ)
+function _pblock_array(MRQ::MiRiQi, w::AbstractVector)
+    bs  = diag_block_dlengths(MRQ)
     blocks(PseudoBlockArray(w, bs))
 end
 
-function rand(::Type{Ridiagonal{T}}, bs::Vector{Int}) where T
-    Ridiagonal(
-        map(sz -> rand(T,sz), Rsizes_from_blocksides(bs))
-    )    
-end
-
-function rand(::Type{Qidiagonal{T}}, bs::Vector{Int}) where T
-    Qidiagonal(
-        map(sz -> rand(T,sz), Qsizes_from_blocksides(bs))
-    )    
+function _pblock_array(MRQ::MiRiQi, w::AbstractVector, v::AbstractVector)
+    bs  = diag_block_dlengths(MRQ)
+    blocks(PseudoBlockArray(w, bs)), blocks(PseudoBlockArray(v, bs))
 end
 
 
-function randn(::Type{Ridiagonal{T}}, bs::Vector{Int}) where T
-    Ridiagonal(
-        map(sz -> randn(T,sz), Rsizes_from_blocksides(bs))
-    )    
-end
 
-function randn(::Type{Qidiagonal{T}}, bs::Vector{Int}) where T
-    Qidiagonal(
-        map(sz -> randn(T,sz), Qsizes_from_blocksides(bs))
-    )    
-end
+rand(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+rand(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+rand(::Type{A}, bs::Vector{Int}) where {T,A<:Qidiagonal{T}} = Qidiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
 
+
+randn(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+randn(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+randn(::Type{A}, bs::Vector{Int}) where {T,A<:Qidiagonal{T}} = Qidiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
 
 
 # AbstractMatrix methods
 # =================
 
-size(RQ::RiOrQi)    = (n = sum(diag_block_dlengths(RQ)); (n,n))
-size(RQ::RiOrQi, d) = d::Integer <= 2 ? size(RQ)[d] : 1
+size(MRQ::MiRiQi)    = (n = sum(diag_block_dlengths(MRQ)); (n,n))
+size(MRQ::MiRiQi, d) = d::Integer <= 2 ? size(MRQ)[d] : 1
 
 function getindex(R::Ridiagonal{T}, i::Integer, j::Integer) where T
     row_or_col_Ix = blockedrange(diag_block_dlengths(R))
@@ -122,8 +125,25 @@ function getindex(Q::Qidiagonal{T}, i::Integer, j::Integer) where T
     end
 end
 
-function replace_in_print_matrix(RQ::RiOrQi, i::Integer, j::Integer, s::AbstractString)
-    row_or_col_Ix = blockedrange(diag_block_dlengths(RQ))
+
+function getindex(M::Midiagonal{T}, i::Integer, j::Integer) where T
+    row_or_col_Ix = blockedrange(diag_block_dlengths(M))
+    fbi = findblockindex(row_or_col_Ix, i)
+    fbj = findblockindex(row_or_col_Ix, j)
+    Block4i = fbi.I[1]
+    Block4j = fbj.I[1]
+    if Block4i == Block4j
+        wbi = blockindex(fbi)
+        wbj = blockindex(fbj)
+        M.data[Block4i][wbi, wbj]
+    else 
+        return zero(T)
+    end
+end
+
+
+function replace_in_print_matrix(MRQ::MiRiQi, i::Integer, j::Integer, s::AbstractString)
+    row_or_col_Ix = blockedrange(diag_block_dlengths(MRQ))
     fbi = findblockindex(row_or_col_Ix, i)
     fbj = findblockindex(row_or_col_Ix, j)
     Block4i = fbi.I[1]
@@ -131,17 +151,25 @@ function replace_in_print_matrix(RQ::RiOrQi, i::Integer, j::Integer, s::Abstract
 
     if i==j
         return s 
-    elseif (RQ isa Ridiagonal) && (Block4i == Block4j + 1)
+    elseif (MRQ isa Ridiagonal) && (Block4i == Block4j + 1)
         return s 
-    elseif (RQ isa Qidiagonal) && (Block4i + 1 == Block4j)
-        return s 
+    elseif (MRQ isa Qidiagonal) && (Block4i + 1 == Block4j)
+        return s
+    elseif (MRQ isa Midiagonal) && (Block4i == Block4j)
+        return s  
     else 
         return Base.replace_with_centered_mark(s)
     end
 end
 
+# inv and pinv for M
+# =================
 
-# lmul! (R₂ ⋯ RₙRₙ₋₁) * w or (Q'₂ ⋯ Q'ₙQ'ₙ₋₁) * w
+inv(M::Midiagonal)  = Midiagonal(map(inv, M.data))
+pinv(M::Midiagonal) = Midiagonal(map(pinv, M.data))
+
+
+# lmul! (R₂ ⋯ RₙRₙ₋₁) * w or (Q'₂ ⋯ Q'ₙQ'ₙ₋₁) * w 
 # =================
 
 
@@ -237,16 +265,32 @@ end
 # 3 arg mul!
 # =================
 
-function mul!(rw::AbstractVector, R::Union{RiOrQi, Adjoint{<:Any,<:RiOrQi}}, w::AbstractVector)
+function mul!(rw::AbstractVector, R::Union{RiQi, Adjoint{<:Any,<:RiQi}}, w::AbstractVector)
     copyto!(rw,w)
     lmul!(R, rw)
 end
 
+
+function mul!(rw::AbstractVector, M::Midiagonal, w::AbstractVector, α::Number, β::Number)
+    rwB, wB = _pblock_array(M, rw, w)
+    Threads.@threads for i = 1:length(wB)
+        mul!(rwB[i], M.data[i], wB[i], α, β)
+    end
+end
+
+function mul!(rw::AbstractVector, M::Adjoint{<:Any,<:Midiagonal}, w::AbstractVector, α::Number, β::Number)
+    rwB, wB = _pblock_array(M, rw, w)
+    Threads.@threads for i = 1:length(wB)
+        mul!(rwB[i], M.data[i]', wB[i], α, β)
+    end
+end
+
+
 # \ and *
 # =========================
 
-(\)(RQ::RiOrQi,                  w::AbstractVector) = ldiv!(RQ, copy(w))
-(\)(RQ::Adjoint{<:Any,<:RiOrQi}, w::AbstractVector) = ldiv!(RQ, copy(w))
+(*)(RQ::RiQi,                  w::AbstractVector) = lmul!(RQ, copy(w))
+(*)(RQ::Adjoint{<:Any,<:RiQi}, w::AbstractVector) = lmul!(RQ, copy(w))
 
-(*)(RQ::RiOrQi,                  w::AbstractVector) = lmul!(RQ, copy(w))
-(*)(RQ::Adjoint{<:Any,<:RiOrQi}, w::AbstractVector) = lmul!(RQ, copy(w))
+(\)(RQ::RiQi,                  w::AbstractVector) = ldiv!(RQ, copy(w))
+(\)(RQ::Adjoint{<:Any,<:RiQi}, w::AbstractVector) = ldiv!(RQ, copy(w))

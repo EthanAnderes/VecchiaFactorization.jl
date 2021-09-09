@@ -11,21 +11,31 @@ using LBblocks
 @testset "Ridiagonal and Qidiagonal" begin 
 
     @sblock let 
+
         bs = [2, 4, 3]
-        @test VF.Rsizes_from_blocksides(bs) == [(4,2), (3,4)]
-        @test VF.Qsizes_from_blocksides(bs) == [(2,4), (4,3)]
+        @test VF.sizes_from_blocksides(Ridiagonal, bs) == [(4,2), (3,4)]
+        @test VF.sizes_from_blocksides(Qidiagonal, bs) == [(2,4), (4,3)]
+        @test VF.sizes_from_blocksides(Midiagonal, bs) == [(2,2), (4,4), (3,3)]
         
-        ## Ri = Ridiagonal([randn(4,2), randn(3,4)])
-        ## Qi = Qidiagonal([rand(2,4),  rand(4,3)])
         Ri = rand(Ridiagonal{Float64}, bs)
         Qi = rand(Qidiagonal{Float64}, bs)
+        Mi = rand(Midiagonal{Float64}, bs)
+
+        @test Ri isa Ridiagonal
+        @test Qi isa Qidiagonal
+        @test Mi isa Midiagonal
 
         @test VF.diag_block_dlengths(Ri) == [2,4,3]
         @test VF.diag_block_dlengths(Qi) == [2,4,3]
+        @test VF.diag_block_dlengths(Mi) == [2,4,3]
+        
         @test size(Ri) == (9,9)
         @test size(Qi) == (9,9)
+        @test size(Mi) == (9,9)
+        
         @test (size(Ri,1), size(Ri,2)) == size(Ri)
         @test (size(Qi,1), size(Qi,2)) == size(Qi)
+        @test (size(Mi,1), size(Mi,2)) == size(Mi)
 
     end
 
@@ -39,6 +49,7 @@ using LBblocks
 
         Ri = randn(Ridiagonal{Float64}, bs)
         Qi = randn(Qidiagonal{Float64}, bs)
+        Mi = randn(Midiagonal{Float64}, bs)
 
         v = rand(Float64, sum(bs))
 
@@ -140,7 +151,7 @@ end
     vv = randn(size(V,1), 500)
 
     @benchmark V * v    # 49μs
-    @benchmark V * vv   # 24ms
+    ## @benchmark V * vv   # 24ms
     @benchmark Vᴾ * v   # 54 μs
     @benchmark Vᴾ * vv  # 27 ms
 

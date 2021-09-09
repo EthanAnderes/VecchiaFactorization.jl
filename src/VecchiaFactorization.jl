@@ -5,12 +5,13 @@ using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block, blocks, blocksi
 blockedrange, findblockindex, blockindex 
 using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal
 using FillArrays
-## using ArrayLayouts
 
-export Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted
+import LinearAlgebra: mul!, lmul!, ldiv!, \,  *, inv, pinv
+import Base: size, getindex, replace_in_print_matrix, rand, randn
 
-include("ri_qi_diag.jl")
-export Ridiagonal, Qidiagonal
+export Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted, Ridiagonal, Qidiagonal, Midiagonal
+
+include("mi_ri_qi_diag.jl")
 
 
 # Make a Vecchia Struct
@@ -18,14 +19,14 @@ export Ridiagonal, Qidiagonal
 
 ## represents cov Σ = invR * M * invR'
 struct Vecchia{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <: Factorization{T}
-    R::Vector{RT}
-    M::Vector{MT}
-    bsds::Vector{Int} #blocksides
+    R::Ridiagonal{T,RT}
+    M::Midiagonal{T,MT}
+    bsds::Vector{Int}
 end
 struct VecchiaPivoted{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <: Factorization{T}
-    R::Vector{RT}
-    M::Vector{MT}
-    bsds::Vector{Int} #blocksides
+    R::Ridiagonal{T,RT}
+    M::Midiagonal{T,MT}
+    bsds::Vector{Int}
     piv::Vector{Int} # permutation
 end
 
@@ -35,14 +36,14 @@ end
 
 ## represents inverse cov invΣ = R' * invM * R
 struct InvVecchia{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <: Factorization{T}
-    R::Vector{RT}
-    invM::Vector{MT}
-    bsds::Vector{Int} # blocksides
+    R::Ridiagonal{T,RT}
+    invM::Midiagonal{T,MT}
+    bsds::Vector{Int}
 end
 struct InvVecchiaPivoted{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <: Factorization{T}
-    R::Vector{RT}
-    invM::Vector{MT}
-    bsds::Vector{Int} # blocksides
+    R::Ridiagonal{T,RT}
+    invM::Midiagonal{T,MT}
+    bsds::Vector{Int}
     piv::Vector{Int} # permutation
 end
 
@@ -66,20 +67,19 @@ function Vecchia(;diag_blocks::Vector{DM}, subdiag_blocks::Vector{sDM}) where {D
 	@assert length(subdiag_blocks) == nblocks - 1
 	R = map(1:nblocks-1) do i 
 		- subdiag_blocks[i] / diag_blocks[i]
-	end 
+	end |> Ridiagonal
 
 	M = map(1:nblocks) do i 
 		if i==1 
 			return diag_blocks[i]
 		else 
-			## return diag_blocks[i] + R[i-1] * subdiag_blocks[i-1]'
+			## return diag_blocks[i] + R.data[i-1] * subdiag_blocks[i-1]'
 			return diag_blocks[i] - subdiag_blocks[i-1] / diag_blocks[i-1] * subdiag_blocks[i-1]'
 		end
-	end
+	end |> Midiagonal
 
-	bsn = map(b->size(b,1), diag_blocks)
 
-	Vecchia(R, M, bsn)
+	Vecchia(R, M, diag_block_dlengths(M))
 end
 
 function Vecchia(Σ::AbstractBlockMatrix)
@@ -107,110 +107,84 @@ function InvVecchiaPivoted(V::InvVecchia, piv::Vector{Int})
 	InvVecchiaPivoted(V.R, V.invM, V.bsds, piv)
 end
 
-# Vecchia: internal methods for left mult
+# left mult methods, non-pivoted
+# ============================
+
+# Σ = invR * M * invR'
+function (*)(V::Vecchia, w::AbstractVector)
+	rw = copy(w)
+	ldiv!(V.R', rw) 
+	mul!(rw, V.M, copy(rw)) 
+	ldiv!(V.R, rw) 
+end
+
+# invΣ = R' * invM * R
+function (*)(V::InvVecchia, w::AbstractVector)
+	rw = copy(w)
+	lmul!(V.R, rw) 
+	mul!(rw, V.invM, copy(rw)) 
+	lmul!(V.R', rw) 
+end
+
+
+# Σ' = invR * M' * invR'
+function (*)(Vᴴ::Adjoint{<:Any,<:Vecchia}, w::AbstractVector)
+	V  = parent(Vᴴ)
+	rw = copy(w)
+	ldiv!(V.R', rw) 
+	mul!(rw, V.M', copy(rw)) 
+	ldiv!(V.R, rw) 
+end
+
+# invΣ' = R' * invM' * R
+function (*)(Vᴴ::Adjoint{<:Any,<:InvVecchia}, w::AbstractVector)
+	V  = parent(Vᴴ)
+	rw = copy(w)
+	lmul!(V.R, rw) 
+	mul!(rw, V.invM', copy(rw)) 
+	lmul!(V.R', rw) 
+end
+
+
+
+# left mult methods, pivoted
 # ============================
 
 
-## Σ = invR * M * invR'
-function _vecclmul!(R::Vector{RT}, M::Vector{MT}, bsds::Vector{Int}, w::AbstractVector) where {T, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}}
-	wbB = blocks(PseudoBlockArray(w, bsds))
-	nb  = length(bsds)
-	## z = inv(R)' * w
-	for i in nb-1:-1:1
-		mul!(wbB[i], R[i]', wbB[i+1], -1, true)		
-	end
-	## q = M * z
-	for i in 1:nb	
-		mul!(wbB[i], M[i], copy(wbB[i]))
-	end
-	## inv(R) * q
-	for i in 1:nb-1
-		mul!(wbB[i+1], R[i], wbB[i], -1, true)		
-	end
-	return w
+
+# Σ = P' * invR * M * invR' * P
+function (*)(V::VecchiaPivoted, w::AbstractVector)
+	V′ = Vecchia(V.R, V.M, V.bsds)
+	w′ = permute!(copy(w), V.piv)
+	invpermute!(V′ * w′, V.piv)
 end
 
-function _vecclmul!(R::Vector{RT}, M::Vector{MT}, bsds::Vector{Int}, W::AbstractMatrix) where {T, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}}
-	for i=1:size(W,2)
-		_vecclmul!(R, M, bsds, view(W, :, i))
-	end 
-	return W 
-end
-
-## TODO: eventually make somethine like an R matrix type and Q matrix type (Q = R')
-## for now I'm just making an internal method for it but eventually this will be
-## removed ...
-function _Rldiv!(R::Vector{RT}, bsds::Vector{Int}, w::AbstractVector) where {T, RT<:AbstractMatrix{T}}
-	wbB = blocks(PseudoBlockArray(w, bsds))
-	nb  = length(bsds)
-	## inv(R) * q
-	for i in 1:nb-1
-		mul!(wbB[i+1], R[i], wbB[i], -1, true)		
-	end
-	return w
-end
-
-# InvVecchia: internal methods for left mult
-# ============================
-
-## invΣ = R' * invM * R
-function _invvecclmul!(R::Vector{RT}, invM::Vector{MT}, bsds::Vector{Int}, w::AbstractVector) where {T, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}}
-	wbB = blocks(PseudoBlockArray(w, bsds))
-	nb  = length(bsds)
-	## z = R * w
-	for i in nb-1:-1:1
-		mul!(wbB[i+1], R[i], wbB[i], true, true)	
-	end
-	## q = invM * z
-	for i in 1:nb	
-		mul!(wbB[i], invM[i], copy(wbB[i]))
-	end
-	## R' * q
-	for i in 1:nb-1
-		mul!(wbB[i], R[i]', wbB[i+1], true, true)		
-	end
-	return w
+# invΣ = P' * R' * invM * R * P
+function (*)(V::InvVecchiaPivoted, w::AbstractVector)
+	V′ = InvVecchia(V.R, V.invM, V.bsds)
+	w′ = permute!(copy(w), V.piv)
+	invpermute!(V′ * w′, V.piv)
 end
 
 
-function _invvecclmul!(R::Vector{RT}, invM::Vector{MT}, bsds::Vector{Int}, W::AbstractMatrix) where {T, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}}
-	for i=1:size(W,2)
-		_invvecclmul!(R, invM, bsds, view(W, :, i))
-	end 
-	return W 
+# Σ' = P' * invR * M' * invR' * P
+function (*)(Vᴴ::Adjoint{<:Any,<:VecchiaPivoted}, w::AbstractVector)
+	V  = parent(Vᴴ)
+	V′ = Vecchia(V.R, V.M, V.bsds)
+	w′ = permute!(copy(w), V.piv)
+	invpermute!(V′' * w′, V.piv)
 end
 
 
-
-# Exported left mult methods
-# ============================
-
-Base.:*(V::InvVecc_or_Vecc,         W::Union{AbstractVector, AbstractMatrix}) = lmul!(V, copy(W))
-Base.:*(V::InvVecc_or_Vecc_Pivoted, W::Union{AbstractVector, AbstractMatrix}) = lmul!(V, copy(W))
-
-function LinearAlgebra.lmul!(V::Vecchia, W::Union{AbstractVector, AbstractMatrix})
-	_vecclmul!(V.R, V.M, V.bsds, W)
+# invΣ' = P' * R' * invM' * R * P
+function (*)(Vᴴ::Adjoint{<:Any,<:InvVecchiaPivoted}, w::AbstractVector)
+	V  = parent(Vᴴ)
+	V′ = InvVecchia(V.R, V.invM, V.bsds)
+	w′ = permute!(copy(w), V.piv)
+	invpermute!(V′' * w′, V.piv)
 end
 
-function LinearAlgebra.lmul!(V::InvVecchia, W::Union{AbstractVector, AbstractMatrix})
-	_invvecclmul!(V.R, V.invM, V.bsds, W)
-end
 
-function LinearAlgebra.lmul!(V::VecchiaPivoted, W::Union{AbstractVector, AbstractMatrix})
-	for i = 1:size(W,2)
-		_vecclmul!(V.R, V.M, V.bsds, permute!(view(W, :, i), V.piv))
-		invpermute!(view(W, :, i), V.piv)
-	end
-	return W
-end
-
-function LinearAlgebra.lmul!(V::InvVecchiaPivoted, W::Union{AbstractVector, AbstractMatrix})
-	for i = 1:size(W,2)
-		_invvecclmul!(V.R, V.invM, V.bsds, permute!(view(W, :, i), V.piv))
-		invpermute!(view(W, :, i), V.piv)
-	end
-	return W
-end
 
 
 # other LinearAlgebra methods
@@ -219,24 +193,24 @@ end
 function Rmat(V::InvVecc_or_Vecc{T}) where {T}
 	nb  = length(V.bsds)
 	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
-	BlockBidiagonal(👀, V.R, :L)
+	BlockBidiagonal(👀, V.R.data, :L)
 end
 
 function Rᴴmat(V::InvVecc_or_Vecc{T}) where {T}
 	nb  = length(V.bsds)
 	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
-	BlockBidiagonal(👀, map(x->Matrix(x'), V.R), :U)
+	BlockBidiagonal(👀, map(x->Matrix(x'), V.R.data), :U)
 end
 
 # pinv(V)  and inv(V)
 # ----------------------------
 
-LinearAlgebra.pinv(V::Vecchia) = InvVecchia(deepcopy(V.R), map(pinv, V.M), V.bsds) 
-LinearAlgebra.pinv(V::InvVecchia) = Vecchia(deepcopy(V.R), map(pinv, V.invM), V.bsds) 
+LinearAlgebra.pinv(V::Vecchia) = InvVecchia(deepcopy(V.R.data), map(pinv, V.M.data), V.bsds) 
+LinearAlgebra.pinv(V::InvVecchia) = Vecchia(deepcopy(V.R.data), map(pinv, V.invM.data), V.bsds) 
 Base.inv(V::InvVecc_or_Vecc) = pinv(V)
 
-LinearAlgebra.pinv(V::VecchiaPivoted) = InvVecchiaPivoted(deepcopy(V.R), map(pinv, V.M), V.bsds, V.piv) 
-LinearAlgebra.pinv(V::InvVecchiaPivoted) = VecchiaPivoted(deepcopy(V.R), map(pinv, V.invM), V.bsds, V.piv)
+LinearAlgebra.pinv(V::VecchiaPivoted) = InvVecchiaPivoted(deepcopy(V.R.data), map(pinv, V.M.data), V.bsds, V.piv) 
+LinearAlgebra.pinv(V::InvVecchiaPivoted) = VecchiaPivoted(deepcopy(V.R.data), map(pinv, V.invM.data), V.bsds, V.piv)
 Base.inv(V::InvVecc_or_Vecc_Pivoted) = pinv(V)
 
 
@@ -255,7 +229,7 @@ Base.size(V::InvVecc_or_Vecc_Pivoted{T}, d) where {T} = d::Integer <= 2 ? size(V
 
 # Σ = invR * M * invR'
 function Base.Matrix(V::Vecchia)
-	M    = BlockDiagonal(V.M)
+	M    = BlockDiagonal(V.M.data)
 	invR = inv(Rmat(V))
 	Matrix(invR  * M * invR')
 end
@@ -264,14 +238,14 @@ end
 function Base.Matrix(Vᴾ::VecchiaPivoted)
 	V      = Vecchia(Vᴾ.R, Vᴾ.M, Vᴾ.bsds)
 	invpiv = invperm(Vᴾ.piv) 
-	M      = BlockDiagonal(V.M)
+	M      = BlockDiagonal(V.M.data)
 	invR   = inv(Rmat(V))
 	Matrix(invR  * M * invR')[invpiv, invpiv]
 end
 
 # invΣ = R' * invM * R
 function Base.Matrix(iV::InvVecchia{T}) where {T}
-	invM = BlockDiagonal(iV.invM)
+	invM = BlockDiagonal(iV.invM.data)
 	R    = Rmat(iV)
 	Matrix(R' * invM * R)
 end
@@ -280,7 +254,7 @@ end
 function Base.Matrix(iVᴾ::InvVecchiaPivoted{T}) where {T}
 	iV      = InvVecchia(iVᴾ.R, iVᴾ.invM, iVᴾ.bsds)
 	invpiv = invperm(iVᴾ.piv) 
-	invM = BlockDiagonal(iV.invM)
+	invM = BlockDiagonal(iV.invM.data)
 	R    = Rmat(iV)
 	Matrix(R' * invM * R)[invpiv, invpiv]
 end
@@ -290,7 +264,7 @@ end
 # ----------------------------
 
 function inv_cholesky(V::Vecchia)
-	L⁻¹s = map(V.M) do M 
+	L⁻¹s = map(V.M.data) do M 
 		## inv(cholesky(Hermitian(M, :L)).L)
 		Matrix(inv(cholesky(Hermitian(M, :L)).L))
 	end 
