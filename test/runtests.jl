@@ -43,8 +43,8 @@ using LBblocks
     @sblock let 
         ## bs = vcat(fill(60,7), fill(80,10))
         ## bs = fill(80,20)
-        ## bs = [2, 4, 3]
-        bs = fill(10,20)
+        bs = [2, 4, 3, 10]
+        ## bs = fill(10,20)
         ## bs = fill(10,200)
 
         Ri = randn(Ridiagonal{Float64}, bs)
@@ -65,7 +65,7 @@ using LBblocks
         ## -----
         x = 1:size(Ri,1)
         v = zeros(Float64, length(x)); 
-        for i = 1:4  # it is strange how unstable this inversion is 
+        for i = 1:2  # it is strange how unstable this inversion is 
             v[rand(x)] = 1
         end
         ## -----
@@ -83,47 +83,42 @@ using LBblocks
         @test v ≈ w1 rtol=1e-5
         @test v ≈ w2 rtol=1e-5
 
-
     end
 
-
-
     #=
-        using BenchmarkTools
+    using BenchmarkTools
 
-        bs = fill(50,20)        
-        Ri = randn(Ridiagonal{Float64}, bs)
-        Qi = randn(Qidiagonal{Float64}, bs)
-        Mi = randn(Midiagonal{Float64}, bs)
-        v  = randn(size(Ri,1))
-        w  = randn(size(Ri,1))
-        M = randn(size(Ri,1), size(Ri,1))
-        @benchmark mul!(w, Mi, v, true, false)  # 9 μs
-        @benchmark Mi * v  # 9 μs
-        @benchmark Ri * v  # 9 μs
-        @benchmark Qi * v  # 9 μs
+    bs = fill(50,20)        
+    Ri = randn(Ridiagonal{Float64}, bs)
+    Qi = randn(Qidiagonal{Float64}, bs)
+    Mi = randn(Midiagonal{Float64}, bs)
+    v  = randn(size(Ri,1))
+    w  = randn(size(Ri,1))
+    M = randn(size(Ri,1), size(Ri,1))
+    @benchmark mul!(w, Mi, v, true, false)  # 9 μs
+    @benchmark Mi * v  # 9 μs
+    @benchmark Ri * v  # 9 μs
+    @benchmark Qi * v  # 9 μs
 
-        @benchmark Mi' * v # 9 μs
-        @benchmark Ri' * v # 9 μs
-        @benchmark Qi' * v # 9 μs
+    @benchmark Mi' * v # 9 μs
+    @benchmark Ri' * v # 9 μs
+    @benchmark Qi' * v # 9 μs
 
-        @benchmark Mi \ v  # 9 μs
-        @benchmark Ri \ v  # 9 μs
-        @benchmark Qi \ v  # 9 μs
+    @benchmark Mi \ v  # 9 μs
+    @benchmark Ri \ v  # 9 μs
+    @benchmark Qi \ v  # 9 μs
 
-        @benchmark Mi' \ v # 9 μs
-        @benchmark Ri' \ v # 9 μs
-        @benchmark Qi' \ v # 9 μs
+    @benchmark Mi' \ v # 9 μs
+    @benchmark Ri' \ v # 9 μs
+    @benchmark Qi' \ v # 9 μs
 
-
-        @benchmark M * v # 112 μs
+    @benchmark M * v # 112 μs
     =#
 
 end
 
 
-@testset "VecchiaFactorization.jl" begin
-    # Write your tests here.
+@testset "Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted" begin
 
     K(x,y,θ) = exp(- θ * abs(x - y) ^ 0.8 )
 
@@ -169,30 +164,23 @@ end
     @benchmark Σ * vv   # 13 ms (this must be faster due to optimized BLAS)
     =#
 
-
-
     #=
     using PyPlot
-
     fig, ax = subplots(2)
     ax[1].semilogy(eigen(Symmetric(matV)).values,label="matV eigen")
     ax[1].semilogy(eigen(Symmetric(Matrix(Σ))).values,"--",label="Σ eigen")
     ax[1].legend()
-
     ax[2].semilogy(eigen(Symmetric(matVᴾ)).values,label="matVᴾ eigen")
     ax[2].semilogy(eigen(Symmetric(Matrix(Σ))).values,"--",label="Σ eigen")
     ax[2].legend()
     =# 
 
-
     #=
     using PyPlot
-
     fig, ax = subplots(2)
     ax[1].plot(Σv1,label="Σv1")
     ax[1].plot(Σv ,"--",label="Σv")
     ax[1].legend()
-
     ax[2].plot(Σv3,label="Σv3")
     ax[2].plot(Σv ,"--",label="Σv")
     ax[2].legend()
@@ -216,23 +204,52 @@ end
     @test w3 ≈ w4 rtol=1e-5
 
 
+
+
     #=
     using PyPlot
 
+    @sblock let V = Vᴾ, Σ = Σ
+        mV  = Matrix(V)
+        imV = Matrix(inv(V))
+        iΣ  = inv(Σ)
+
+        fig,ax = subplots(2,3)
+        mV     |> ax[1,1].imshow
+        Σ      |> ax[1,2].imshow
+        mV - Σ |> ax[1,3].imshow
+
+        imV      .|> abs .|> log |> ax[2,1].imshow
+        iΣ       .|> abs .|> log |> ax[2,2].imshow
+        imV - iΣ .|> abs .|> log |> ax[2,3].imshow
+    end
+
+    @sblock let V
+        matRᴴ = VF.Rᴴmat(V)
+        matR  = VF.Rmat(V)
+        matRᴴ .|> abs .|> log |> matshow; colorbar()
+        matR  .|> abs .|> log |> matshow; colorbar()
+    end
+
+    =#
+
+
+
+    #=
+    using PyPlot
     fig, ax = subplots(2)
     ax[1].plot(w1,label="w1")
     ax[1].plot(w ,"--",label="w")
     ax[1].legend()
-
     ax[2].plot(w3,label="w3")
     ax[2].plot(w ,"--",label="w")
     ax[2].legend()
     =# 
 
 
-    invcholΣ = inv(cholesky(Hermitian(Σ,:L)).L)
-    invcholV = VecchiaFactorization.inv_cholesky(V)
-    invcholVᴾ = VecchiaFactorization.inv_cholesky(Vecchia(Vᴾ.R,Vᴾ.M, Vᴾ.bsds)) # [invperm(Vᴾ.piv), invperm(Vᴾ.piv)]
+    ## invcholΣ = inv(cholesky(Hermitian(Σ,:L)).L)
+    ## invcholV = VecchiaFactorization.inv_cholesky(V)
+    ## invcholVᴾ = VecchiaFactorization.inv_cholesky(Vecchia(Vᴾ.R,Vᴾ.M, Vᴾ.bsds)) # [invperm(Vᴾ.piv), invperm(Vᴾ.piv)]
 
     #=
     using PyPlot
@@ -244,22 +261,6 @@ end
     =#
 
 
-
-    #=
-    using PyPlot
-
-    ## matRᴴ = VecchiaFactorization.Rᴴmat(V)
-    ## matR  = VecchiaFactorization.Rmat(V)
-
-    matV    |> matshow; colorbar()
-    Σ  |> matshow; colorbar()
-    (matV - Σ)  |> matshow; colorbar()
-    
-    imatV   .|> abs .|> log |> matshow; colorbar()
-
-    matRᴴ   .|> abs .|> log |> matshow; colorbar()
-    matR    .|> abs .|> log |> matshow; colorbar()
-    =#
 
     #= 
     using BenchmarkTools

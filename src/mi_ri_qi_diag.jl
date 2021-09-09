@@ -1,6 +1,11 @@
 # Midiagonal, Ridiagonal and Qidiagonal matrices 
 
 
+import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, sqrt, adjoint
+import Base: size, getindex, replace_in_print_matrix, rand, randn
+export Ridiagonal, Qidiagonal, Midiagonal
+
+
 """
 Q <: Qidiagonal ≡ QₙQₙ₋₁ ⋯ Q₂ is block bidiagonal on supdiagonal
 R <: Ridiagonal ≡ R₂ ⋯ RₙRₙ₋₁ is block bidiagonal on subdiagonal
@@ -71,12 +76,9 @@ function _pblock_array(MRQ::MiRiQi, w::AbstractVector, v::AbstractVector)
     blocks(PseudoBlockArray(w, bs)), blocks(PseudoBlockArray(v, bs))
 end
 
-
-
 rand(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
 rand(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
 rand(::Type{A}, bs::Vector{Int}) where {T,A<:Qidiagonal{T}} = Qidiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
-
 
 randn(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
 randn(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
@@ -127,7 +129,6 @@ function getindex(Q::Qidiagonal{T}, i::Integer, j::Integer) where T
     end
 end
 
-
 function getindex(M::Midiagonal{T}, i::Integer, j::Integer) where T
     row_or_col_Ix = blockedrange(diag_block_dlengths(M))
     fbi = findblockindex(row_or_col_Ix, i)
@@ -142,7 +143,6 @@ function getindex(M::Midiagonal{T}, i::Integer, j::Integer) where T
         return zero(T)
     end
 end
-
 
 function replace_in_print_matrix(MRQ::MiRiQi, i::Integer, j::Integer, s::AbstractString)
     row_or_col_Ix = blockedrange(diag_block_dlengths(MRQ))
@@ -164,10 +164,8 @@ function replace_in_print_matrix(MRQ::MiRiQi, i::Integer, j::Integer, s::Abstrac
     end
 end
 
-
 # lmul! (R₂ ⋯ RₙRₙ₋₁) * w or (Q'₂ ⋯ Q'ₙQ'ₙ₋₁) * w 
 # =================
-
 
 # R * w
 function lmul!(R::Ridiagonal, w::AbstractVector)
@@ -266,7 +264,6 @@ function mul!(rw::AbstractVector, R::Union{RiQi, Adjoint{<:Any,<:RiQi}}, w::Abst
     lmul!(R, rw)
 end
 
-
 function mul!(rw::AbstractVector, M::Midiagonal, w::AbstractVector, α::Number, β::Number)
     rwB, wB = _pblock_array(M, rw, w)
     for i = 1:length(wB)
@@ -274,16 +271,6 @@ function mul!(rw::AbstractVector, M::Midiagonal, w::AbstractVector, α::Number, 
     end
     return rw
 end
-
-## I don't think I need this since adjoint is overloaded below
-# function mul!(rw::AbstractVector, M::Adjoint{<:Any,<:Midiagonal}, w::AbstractVector, α::Number, β::Number)
-#     rwB, wB = _pblock_array(M, rw, w)
-#     for i = 1:length(wB)
-#         mul!(rwB[i], M.data[i]', wB[i], α, β)
-#     end
-#     return rw
-# end
-
 
 # \ and * for Ridiagonal and Qidiagonal
 # =========================
