@@ -1,12 +1,12 @@
 module VecchiaFactorization
 
 using LinearAlgebra # BLAS.set_num_threads(1)
-using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block, blocks, blocksizes,
-blockedrange, findblockindex, blockindex 
+using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block, 
+blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar 
 using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal
 using FillArrays
 
-import LinearAlgebra: mul!, lmul!, ldiv!, \,  *, inv, pinv
+import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, sqrt, adjoint
 import Base: size, getindex, replace_in_print_matrix, rand, randn
 
 export Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted, Ridiagonal, Qidiagonal, Midiagonal
@@ -205,14 +205,14 @@ end
 # pinv(V)  and inv(V)
 # ----------------------------
 
-LinearAlgebra.pinv(V::Vecchia) = InvVecchia(deepcopy(V.R.data), map(pinv, V.M.data), V.bsds) 
-LinearAlgebra.pinv(V::InvVecchia) = Vecchia(deepcopy(V.R.data), map(pinv, V.invM.data), V.bsds) 
 Base.inv(V::InvVecc_or_Vecc) = pinv(V)
 
-LinearAlgebra.pinv(V::VecchiaPivoted) = InvVecchiaPivoted(deepcopy(V.R.data), map(pinv, V.M.data), V.bsds, V.piv) 
-LinearAlgebra.pinv(V::InvVecchiaPivoted) = VecchiaPivoted(deepcopy(V.R.data), map(pinv, V.invM.data), V.bsds, V.piv)
-Base.inv(V::InvVecc_or_Vecc_Pivoted) = pinv(V)
+pinv(V::Vecchia)           = InvVecchia(deepcopy(V.R), pinv(V.M), V.bsds)
+pinv(V::VecchiaPivoted)    = InvVecchiaPivoted(deepcopy(V.R), pinv(V.M), V.bsds, V.piv) 
+pinv(V::InvVecchia)        = Vecchia(deepcopy(V.R), pinv(V.invM), V.bsds)
+pinv(V::InvVecchiaPivoted) = VecchiaPivoted(deepcopy(V.R), pinv(V.invM), V.bsds, V.piv)
 
+inv(V::InvVecc_or_Vecc_Pivoted) = pinv(V)
 
 # size 
 # ------------------------------

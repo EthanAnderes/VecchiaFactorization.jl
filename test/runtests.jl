@@ -63,15 +63,16 @@ using LBblocks
         @test (Qi \ v) ≈ ldiv!(Qi, copy(v)) rtol = 1e-10
 
         ## -----
-        # x = 1:size(Ri,1)
-        # v = zero(x); 
-        # for i = 1:2  # it is strange how unstable this inversion is 
-        #     v[rand(x)] = 1
-        # end
+        x = 1:size(Ri,1)
+        v = zeros(Float64, length(x)); 
+        for i = 1:4  # it is strange how unstable this inversion is 
+            v[rand(x)] = 1
+        end
         ## -----
+        # 
         ## τ = 10; v = sin.(τ .* 2 .* π .* x ./ x[end])
         ## -----
-        v = rand(Float64, sum(bs))
+        ## v = rand(Float64, sum(bs))
         ## -----
         v1 = Ri \ (Ri * v)
         v2 = Qi \ (Qi * v)
@@ -93,15 +94,24 @@ using LBblocks
         bs = fill(50,20)        
         Ri = randn(Ridiagonal{Float64}, bs)
         Qi = randn(Qidiagonal{Float64}, bs)
+        Mi = randn(Midiagonal{Float64}, bs)
         v  = randn(size(Ri,1))
+        w  = randn(size(Ri,1))
         M = randn(size(Ri,1), size(Ri,1))
+        @benchmark mul!(w, Mi, v, true, false)  # 9 μs
+        @benchmark Mi * v  # 9 μs
         @benchmark Ri * v  # 9 μs
         @benchmark Qi * v  # 9 μs
+
+        @benchmark Mi' * v # 9 μs
         @benchmark Ri' * v # 9 μs
         @benchmark Qi' * v # 9 μs
 
+        @benchmark Mi \ v  # 9 μs
         @benchmark Ri \ v  # 9 μs
         @benchmark Qi \ v  # 9 μs
+
+        @benchmark Mi' \ v # 9 μs
         @benchmark Ri' \ v # 9 μs
         @benchmark Qi' \ v # 9 μs
 

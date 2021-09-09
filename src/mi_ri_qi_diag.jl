@@ -27,9 +27,11 @@ end
 Ridiagonal(A::Ridiagonal) = A
 Qidiagonal(A::Qidiagonal) = A
 Midiagonal(A::Midiagonal) = A
+
 Ridiagonal{T}(A::Ridiagonal{T}) where {T} = A
 Qidiagonal{T}(A::Qidiagonal{T}) where {T} = A
 Midiagonal{T}(A::Midiagonal{T}) where {T} = A
+
 Ridiagonal{T}(A::Ridiagonal) where {T} = Ridiagonal{T}(A.data)
 Qidiagonal{T}(A::Qidiagonal) where {T} = Qidiagonal{T}(A.data)
 Midiagonal{T}(A::Midiagonal) where {T} = Midiagonal{T}(A.data)
@@ -162,12 +164,6 @@ function replace_in_print_matrix(MRQ::MiRiQi, i::Integer, j::Integer, s::Abstrac
     end
 end
 
-# inv and pinv for M
-# =================
-
-inv(M::Midiagonal)  = Midiagonal(map(inv, M.data))
-pinv(M::Midiagonal) = Midiagonal(map(pinv, M.data))
-
 
 # lmul! (R₂ ⋯ RₙRₙ₋₁) * w or (Q'₂ ⋯ Q'ₙQ'ₙ₋₁) * w 
 # =================
@@ -273,20 +269,23 @@ end
 
 function mul!(rw::AbstractVector, M::Midiagonal, w::AbstractVector, α::Number, β::Number)
     rwB, wB = _pblock_array(M, rw, w)
-    Threads.@threads for i = 1:length(wB)
+    for i = 1:length(wB)
         mul!(rwB[i], M.data[i], wB[i], α, β)
     end
+    return rw
 end
 
-function mul!(rw::AbstractVector, M::Adjoint{<:Any,<:Midiagonal}, w::AbstractVector, α::Number, β::Number)
-    rwB, wB = _pblock_array(M, rw, w)
-    Threads.@threads for i = 1:length(wB)
-        mul!(rwB[i], M.data[i]', wB[i], α, β)
-    end
-end
+## I don't think I need this since adjoint is overloaded below
+# function mul!(rw::AbstractVector, M::Adjoint{<:Any,<:Midiagonal}, w::AbstractVector, α::Number, β::Number)
+#     rwB, wB = _pblock_array(M, rw, w)
+#     for i = 1:length(wB)
+#         mul!(rwB[i], M.data[i]', wB[i], α, β)
+#     end
+#     return rw
+# end
 
 
-# \ and *
+# \ and * for Ridiagonal and Qidiagonal
 # =========================
 
 (*)(RQ::RiQi,                  w::AbstractVector) = lmul!(RQ, copy(w))
@@ -294,3 +293,14 @@ end
 
 (\)(RQ::RiQi,                  w::AbstractVector) = ldiv!(RQ, copy(w))
 (\)(RQ::Adjoint{<:Any,<:RiQi}, w::AbstractVector) = ldiv!(RQ, copy(w))
+
+# special for Midiagonal
+#  =========================
+
+for op in (:*, :/, :\)
+    @eval  $op(M::Midiagonal, w::AbstractVector) = $op(mortar(Diagonal(M.data)), w)
+end
+
+for op in (:inv, :pinv, :sqrt, :adjoint)
+    @eval  $op(M::Midiagonal) = Midiagonal(map($op, M.data))
+end
