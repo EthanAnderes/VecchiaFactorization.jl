@@ -1,12 +1,4 @@
 # Vecchia and InvVecchia with pivoted versions of both
-
-using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal
-import FillArrays
-import LinearAlgebra: Matrix, mul!, lmul!, ldiv!, *, inv, pinv
-import Base: size
-
-export Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted
-
 # ============================================================
 
 ## represents cov Σ = invR * M * invR'
@@ -169,13 +161,13 @@ end
 
 function Rmat(V::InvVecc_or_Vecc{T}) where {T}
 	nb  = length(V.bsds)
-	👀  = map(b->Matrix(FillArrays.Eye{T}(b)), V.bsds)
+	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
 	BlockBidiagonal(👀, V.R.data, :L)
 end
 
 function Rᴴmat(V::InvVecc_or_Vecc{T}) where {T}
 	nb  = length(V.bsds)
-	👀  = map(b->Matrix(FillArrays.Eye{T}(b)), V.bsds)
+	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
 	BlockBidiagonal(👀, map(x->Matrix(x'), V.R.data), :U)
 end
 

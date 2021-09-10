@@ -76,8 +76,8 @@ using LBblocks
         ## -----
         v1 = Ri \ Ri * v
         v2 = Qi \ Qi * v
-        w1 = Ri * Ri \ v
-        w2 = Qi * Qi \ v
+        w1 = Ri * (Ri \ v)
+        w2 = Qi * (Qi \ v)
         @test v ≈ v1 rtol=1e-5
         @test v ≈ v2 rtol=1e-5
         @test v ≈ w1 rtol=1e-5
@@ -104,11 +104,11 @@ using LBblocks
     @benchmark Ri' * v # 9 μs
     @benchmark Qi' * v # 9 μs
 
-    @benchmark Mi \ v  # 9 μs
+    @benchmark Mi \ v  # 716.999 μs
     @benchmark Ri \ v  # 9 μs
     @benchmark Qi \ v  # 9 μs
 
-    @benchmark Mi' \ v # 9 μs
+    @benchmark Mi' \ v # 734 μs
     @benchmark Ri' \ v # 9 μs
     @benchmark Qi' \ v # 9 μs
 
@@ -128,36 +128,74 @@ end
     x      = vcat(range(0,4,length=n-100), 4*rand(100))
     prm    = sortperm(x)
     Σ      = PseudoBlockArray(K.(x, x', θtru), bsn, bsn)
-    V      = Vecchia(;
+
+    V = Vecchia(;
         diag_blocks=[Σ[Block(i,i)] for i = 1:nblocks],
         subdiag_blocks=[Σ[Block(i+1,i)] for i = 1:nblocks-1],
-    )
+        )
+    V′  = inv(V.R) * V.M * inv(V.R)' 
+    iV  = inv(V)
+    iV′ = inv(V′)
+
     Vᴾ     = VecchiaPivoted(Vecchia(Σ[prm,prm], bsn), prm)
+    Vᴾ′    = Piv(prm)' * inv(Vᴾ.R) * Vᴾ.M * inv(Vᴾ.R)' * Piv(prm)
+    iVᴾ    = inv(Vᴾ)
+    iVᴾ′   = inv(Vᴾ′)
+
+
     matV   = Matrix(V)
     matVᴾ  = Matrix(Vᴾ)
+    matiV  = Matrix(iV)
+    matiVᴾ = Matrix(iVᴾ)
+
 
     v    = randn(size(V,1))
-    Σv   = Σ * v
-    Σv1  = V * v
-    Σv2  = matV * v
-    Σv3  = Vᴾ * v
-    Σv4  = matVᴾ * v
 
-    @test Σv1 ≈ Σv2 rtol=1e-5
-    @test Σv3 ≈ Σv4 rtol=1e-5
+    @test V  * v ≈ matV  * v rtol=1e-5
+    @test V  * v ≈ V′    * v rtol=1e-5
+    @test Vᴾ * v ≈ matVᴾ * v rtol=1e-5
+    @test Vᴾ * v ≈ Vᴾ′   * v rtol=1e-5
+
+    @test iV  * v ≈ matiV  * v rtol=1e-5
+    @test iV  * v ≈ iV′    * v rtol=1e-5
+    @test iVᴾ * v ≈ matiVᴾ * v rtol=1e-5
+    @test iVᴾ * v ≈ iVᴾ′   * v rtol=1e-5
+
 
     #=
     using BenchmarkTools
+
     v  = randn(size(V,1))
-    vv = randn(size(V,1), 500)
 
-    @benchmark V * v    # 49μs
-    ## @benchmark V * vv   # 24ms
-    @benchmark Vᴾ * v   # 54 μs
-    @benchmark Vᴾ * vv  # 27 ms
+    @benchmark V   * v   # 50  μs
+    @benchmark V′  * v   # 100 μs
+    @benchmark Vᴾ  * v   # 50  μs
+    @benchmark Vᴾ′ * v   # 100 μs
+    @benchmark iV   * v  # 50  μs
+    @benchmark iV′  * v  # 50  μs
+    @benchmark iVᴾ  * v  # 50  μs
+    @benchmark iVᴾ′ * v  # 50  μs
 
-    @benchmark Σ * v    # 93 μs
-    @benchmark Σ * vv   # 13 ms (this must be faster due to optimized BLAS)
+    R = V.R
+    @benchmark R * v          # 15 μs
+    @benchmark $(R') * v      # 15 μs
+    @benchmark $(inv(R)) * v  # 15 μs
+    @benchmark $(inv(R)') * v # 15 μs
+
+    Q = Qidiagonal(map(x->copy(x'), V.R.data))
+    @benchmark Q * v          # 15 μs
+    @benchmark $(Q') * v      # 15 μs
+    @benchmark $(inv(Q)) * v  # 15 μs
+    @benchmark $(inv(Q)') * v # 15 ms
+
+    M = V.M
+    @benchmark M * v          # 19 μs
+    @benchmark $(M') * v      # 20 μs
+    @benchmark $(inv(M)) * v  # 20 μs
+    @benchmark $(inv(M)') * v # 20 μs
+    @benchmark mul!(v, M, $(copy(v))) # 17 μs
+
+    @benchmark Σ * v    # 83 μs
     =#
 
     #=
@@ -181,26 +219,6 @@ end
     ax[2].plot(Σv ,"--",label="Σv")
     ax[2].legend()
     =# 
-
-    iΣ    = inv(Σ)
-    iV    = inv(V)
-    iVᴾ   = inv(Vᴾ)
-    matiV  = Matrix(iV)
-    matiVᴾ = Matrix(iVᴾ)
-
-    v   = randn(size(V,1))
-    Σv  = Σ * v
-    w   = iΣ * Σv
-    w1  = iV * Σv
-    w2  = matiV * Σv
-    w3  = iVᴾ * Σv
-    w4  = matiVᴾ * Σv
-
-    @test w1 ≈ w2 rtol=1e-5
-    @test w3 ≈ w4 rtol=1e-5
-
-
-
 
     #=
     using PyPlot

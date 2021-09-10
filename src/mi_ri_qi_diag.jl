@@ -1,7 +1,3 @@
-import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, sqrt, adjoint
-import Base: size, getindex, replace_in_print_matrix, rand, randn
-export Ridiagonal, Qidiagonal, Midiagonal
-
 # Midiagonal, Ridiagonal and Qidiagonal matrices 
 # ============================================================
 
@@ -27,6 +23,150 @@ struct Midiagonal{T,M<:AbstractMatrix{T}} <: VecchiaFactor{T}
     data::Vector{M} # diagonal matrices stored along the last dimension
 end
 
+const RiQi{T,M}      = Union{Ridiagonal{T,M}, Qidiagonal{T,M}}
+const MiRiQi{T,M}    = Union{Midiagonal{T,M}, Ridiagonal{T,M}, Qidiagonal{T,M}}
+
+# Interface for VecchiaFactors
+# ===================================
+
+# bypass adjoint and inv
+inv(M::Midiagonal)      = Midiagonal(map(inv, M.data)) 
+adjoint(M::Midiagonal)  = Midiagonal(map(adjoint, M.data)) 
+
+# merge products of Midiagonals
+*(M1::Midiagonal, M2::Midiagonal) = Midiagonal(map(*, M1.data, M2.data))
+
+
+# ldiv!
+# ---------------------------------
+
+# inv(R) * w ≡ (R₂ ⋯ RₙRₙ₋₁)⁻¹ * w
+function ldiv!(R::Ridiagonal, w::AbstractVector{T}) where T
+    wbB = _pblock_array(R, w)
+    for i in 1:length(wbB)-1
+        mul!(wbB[i+1], R.data[i], wbB[i], -1, true)      
+    end
+    return w
+end
+
+# inv(Q)' * w ≡ (Q'₂ ⋯ Q'ₙQ'ₙ₋₁)⁻¹ * w
+function ldiv!(Qᴴ::Adjoint{<:Any,<:Qidiagonal}, w::AbstractVector{T}) where T
+    Q   = parent(Qᴴ)
+    wbB = _pblock_array(Q, w)
+    for i in 1:length(wbB)-1
+        mul!(wbB[i+1], Q.data[i]', wbB[i], -1, true)      
+    end
+    return w
+end
+
+# inv(R)' * w ≡ (Rₙ'Rₙ₋₁' ⋯ R₂')⁻¹ * w
+function ldiv!(Rᴴ::Adjoint{<:Any,<:Ridiagonal}, w::AbstractVector{T}) where T
+    R   = parent(Rᴴ)
+    wbB = _pblock_array(R, w)
+    for i in length(wbB)-1:-1:1
+        mul!(wbB[i], R.data[i]', wbB[i+1], -1, true)     
+    end
+    return w
+end
+
+# inv(Q) * w ≡ (QₙQₙ₋₁ ⋯ Q₂)⁻¹ * w 
+function ldiv!(Q::Qidiagonal, w::AbstractVector{T}) where T
+    wbB = _pblock_array(Q, w)
+    for i in length(wbB)-1:-1:1
+        mul!(wbB[i], Q.data[i], wbB[i+1], -1, true)     
+    end
+    return w
+end
+
+# M * w
+function ldiv!(M::A, w::AbstractVector)  where {A<:Midiagonal}
+    rwB, wB = _pblock_array(M, rw, w)
+    for i = 1:length(wB)
+        copyto!(rwB[i], M.data[i] \ wB[i])
+    end
+    return rw
+end
+
+# inv(M') * w
+function ldiv!(Mᴴ::A, w::AbstractVector) where {A<:Adjoint{<:Any,<:Midiagonal}}
+    M = parent(Mᴴ)
+    rwB, wB = _pblock_array(M, rw, w)
+    for i = 1:length(wB)
+        copyto!(rwB[i], M.data[i]' \ wB[i])
+    end
+    return rw
+end
+
+
+# 3 and 5 arg mul! 
+# ---------------------------------
+
+function mul!(rw::AbstractVector, RQ::A, w::AbstractVector) where {A<:Union{RiQi, Adjoint{<:Any,<:RiQi}}}
+    copyto!(rw,w)
+    lmul!(RQ, rw)
+end
+
+function mul!(rw::AbstractVector, M::A, w::AbstractVector, α::Number, β::Number) where {A<:Midiagonal}
+    rwB, wB = _pblock_array(M, rw, w)
+    for i = 1:length(wB)
+        mul!(rwB[i], M.data[i], wB[i], α, β)
+    end
+    return rw
+end
+
+function mul!(rw::AbstractVector, Mᴴ::A, w::AbstractVector, α::Number, β::Number) where {A<:Adjoint{<:Any,<:Midiagonal}}
+    M = parent(Mᴴ)
+    rwB, wB = _pblock_array(M, rw, w)
+    for i = 1:length(wB)
+        mul!(rwB[i], M.data[i]', wB[i], α, β)
+    end
+    return rw
+end
+
+# mul! above call down to lmul! below
+
+# R * w ≡ (R₂ ⋯ RₙRₙ₋₁) * w
+function lmul!(R::Ridiagonal, w::AbstractVector{T}) where T
+    wbB = _pblock_array(R, w)
+    for i in length(wbB)-1:-1:1
+        mul!(wbB[i+1], R.data[i], wbB[i], true, true)    
+    end
+    return w
+end
+
+# Q' * w ≡ (Q'₂ ⋯ Q'ₙQ'ₙ₋₁) * w 
+function lmul!(Qᴴ::Adjoint{<:Any, <:Qidiagonal}, w::AbstractVector{T}) where T
+    Q   = parent(Qᴴ)
+    wbB = _pblock_array(Q, w)
+    for i in length(wbB)-1:-1:1
+        mul!(wbB[i+1], Q.data[i]', wbB[i], true, true)    
+    end
+    return w
+end
+
+# Q * w ≡ (QₙQₙ₋₁ ⋯ Q₂) * w
+function lmul!(Q::Qidiagonal, w::AbstractVector{T}) where T
+    wbB = _pblock_array(Q, w)
+    for i in 1:length(wbB)-1
+        mul!(wbB[i], Q.data[i], wbB[i+1], true, true)       
+    end
+    return w
+end
+
+# R' * w ≡ (Rₙ'Rₙ₋₁' ⋯ R₂')*w
+function lmul!(Rᴴ::Adjoint{<:Any, <:Ridiagonal}, w::AbstractVector{T}) where T
+    R   = parent(Rᴴ)
+    wbB = _pblock_array(R, w)
+    for i in 1:length(wbB)-1
+        mul!(wbB[i], R.data[i]', wbB[i+1], true, true)       
+    end
+    return w
+end
+
+
+# Non-interface methods
+# ================================================
+
 Ridiagonal(A::Ridiagonal) = A
 Qidiagonal(A::Qidiagonal) = A
 Midiagonal(A::Midiagonal) = A
@@ -39,22 +179,6 @@ Ridiagonal{T}(A::Ridiagonal) where {T} = Ridiagonal{T}(A.data)
 Qidiagonal{T}(A::Qidiagonal) where {T} = Qidiagonal{T}(A.data)
 Midiagonal{T}(A::Midiagonal) where {T} = Midiagonal{T}(A.data)
 
-const RiQi{T,M} = Union{Ridiagonal{T,M}, Qidiagonal{T,M}}
-const MiRiQi{T,M} = Union{Midiagonal{T,M}, Ridiagonal{T,M}, Qidiagonal{T,M}}
-
-# Hook into lazy inv views for chaining ops
-#------------------------------
-
-inv(A::RiQi)  = Inv(A)
-pinv(A::RiQi) = Inv(A)
-
-inv(M::Midiagonal)  = Midiagonal(map(inv, M.data))
-pinv(M::Midiagonal) = Midiagonal(map(pinv, M.data))
-
-# only Midiagonals merg in multiplications
-*(M1::Midiagonal, M2::Midiagonal) = Midiagonal(map(*, M1.data, M2.data))
-
-#------------------------------
 
 sizes_from_blocksides(::Type{<:Midiagonal}, bs::Vector{Int}) = [(bs[i],bs[i]) for i=1:length(bs)]
 sizes_from_blocksides(::Type{<:Ridiagonal}, bs::Vector{Int}) = [(bs[i+1],bs[i]) for i=1:length(bs)-1]
@@ -171,139 +295,4 @@ function replace_in_print_matrix(MRQ::MiRiQi, i::Integer, j::Integer, s::Abstrac
     else 
         return Base.replace_with_centered_mark(s)
     end
-end
-
-# lmul! (R₂ ⋯ RₙRₙ₋₁) * w or (Q'₂ ⋯ Q'ₙQ'ₙ₋₁) * w 
-# =================
-
-# R * w
-function lmul!(R::Ridiagonal, w::AbstractVector{T}) where T
-    wbB = _pblock_array(R, w)
-    for i in length(wbB)-1:-1:1
-        mul!(wbB[i+1], R.data[i], wbB[i], true, true)    
-    end
-    return w
-end
-
-# Q' * w
-function lmul!(Qᴴ::Adjoint{<:Any, <:Qidiagonal}, w::AbstractVector{T}) where T
-    Q   = parent(Qᴴ)
-    wbB = _pblock_array(Q, w)
-    for i in length(wbB)-1:-1:1
-        mul!(wbB[i+1], Q.data[i]', wbB[i], true, true)    
-    end
-    return w
-end
-
-
-# lmul! (QₙQₙ₋₁ ⋯ Q₂)*w or (Rₙ'Rₙ₋₁' ⋯ R₂')*w
-# =================
-
-# Q * w
-function lmul!(Q::Qidiagonal, w::AbstractVector{T}) where T
-    wbB = _pblock_array(Q, w)
-    for i in 1:length(wbB)-1
-        mul!(wbB[i], Q.data[i], wbB[i+1], true, true)       
-    end
-    return w
-end
-
-# R' * w
-function lmul!(Rᴴ::Adjoint{<:Any, <:Ridiagonal}, w::AbstractVector{T}) where T
-    R   = parent(Rᴴ)
-    wbB = _pblock_array(R, w)
-    for i in 1:length(wbB)-1
-        mul!(wbB[i], R.data[i]', wbB[i+1], true, true)       
-    end
-    return w
-end
-
-# ldiv! (R₂ ⋯ RₙRₙ₋₁)⁻¹ * w or (Q'₂ ⋯ Q'ₙQ'ₙ₋₁)⁻¹ * w
-# =================
-
-# inv(R) * w
-function ldiv!(R::Ridiagonal, w::AbstractVector{T}) where T
-    wbB = _pblock_array(R, w)
-    for i in 1:length(wbB)-1
-        mul!(wbB[i+1], R.data[i], wbB[i], -1, true)      
-    end
-    return w
-end
-
-# inv(Q)' * w
-function ldiv!(Qᴴ::Adjoint{<:Any,<:Qidiagonal}, w::AbstractVector{T}) where T
-    Q   = parent(Qᴴ)
-    wbB = _pblock_array(Q, w)
-    for i in 1:length(wbB)-1
-        mul!(wbB[i+1], Q.data[i]', wbB[i], -1, true)      
-    end
-    return w
-end
-
-
-
-# ldiv! (QₙQₙ₋₁ ⋯ Q₂)⁻¹ * w or (Rₙ'Rₙ₋₁' ⋯ R₂')⁻¹ * w
-# =================
-
-# inv(R)' * w
-function ldiv!(Rᴴ::Adjoint{<:Any,<:Ridiagonal}, w::AbstractVector{T}) where T
-    R   = parent(Rᴴ)
-    wbB = _pblock_array(R, w)
-    for i in length(wbB)-1:-1:1
-        mul!(wbB[i], R.data[i]', wbB[i+1], -1, true)     
-    end
-    return w
-end
-
-# inv(Q) * w
-function ldiv!(Q::Qidiagonal, w::AbstractVector{T}) where T
-    wbB = _pblock_array(Q, w)
-    for i in length(wbB)-1:-1:1
-        mul!(wbB[i], Q.data[i], wbB[i+1], -1, true)     
-    end
-    return w
-end
-
-
-# 3 arg mul!
-# =================
-
-function mul!(rw::AbstractVector{S}, R::Union{RiQi, Adjoint{<:Any,<:RiQi}}, w::AbstractVector{T}) where {T,S}
-    copyto!(rw,w)
-    lmul!(R, rw)
-end
-
-function mul!(rw::AbstractVector{S}, M::Midiagonal, w::AbstractVector{T}, α::Number, β::Number) where {T,S}
-    rwB, wB = _pblock_array(M, rw, w)
-    for i = 1:length(wB)
-        mul!(rwB[i], M.data[i], wB[i], α, β)
-    end
-    return rw
-end
-
-# \ and * for Ridiagonal and Qidiagonal
-# =========================
-
-*(RQ::Ridiagonal{S},            w::AbstractVector{T}) where {S,T} = lmul!(RQ, copy(w))
-*(RQ::Qidiagonal{S},            w::AbstractVector{T}) where {S,T} = lmul!(RQ, copy(w))
-*(RQ::Adjoint{S,Ridiagonal{S}}, w::AbstractVector{T}) where {S,T} = lmul!(RQ, copy(w))
-*(RQ::Adjoint{S,Qidiagonal{S}}, w::AbstractVector{T}) where {S,T} = lmul!(RQ, copy(w))
-
-\(RQ::Ridiagonal{S},            w::AbstractVector{T}) where {S,T}  = ldiv!(RQ, copy(w))
-\(RQ::Qidiagonal{S},            w::AbstractVector{T}) where {S,T}  = ldiv!(RQ, copy(w))
-\(RQ::Adjoint{S,Ridiagonal{S}}, w::AbstractVector{T}) where {S,T}  = ldiv!(RQ, copy(w))
-\(RQ::Adjoint{S,Qidiagonal{S}}, w::AbstractVector{T}) where {S,T}  = ldiv!(RQ, copy(w))
-
-# special for Midiagonal
-#  =========================
-
-*(M::Midiagonal, w::AbstractVector{T}) where T = mul!(copy(w), M, w)
-
-for op in (:/, :\)
-    @eval  $op(M::Midiagonal, w::AbstractVector{T}) where T = Matrix($op(mortar(Diagonal(M.data)), w))
-end
-
-
-for op in (:sqrt, :adjoint)
-    @eval  $op(M::Midiagonal) = Midiagonal(map($op, M.data))
 end
