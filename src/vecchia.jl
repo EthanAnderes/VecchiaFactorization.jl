@@ -7,7 +7,7 @@ import Base: size
 
 export Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted
 
-
+# ============================================================
 
 ## represents cov Σ = invR * M * invR'
 struct Vecchia{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <: Factorization{T}
@@ -22,11 +22,11 @@ struct VecchiaPivoted{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <
     piv::Vector{Int} # permutation
 end
 
-## For VecchiaPivoted the Vecchia approx is applied to Σ[piv,piv].
-## so that Σ ≈ (invR * M * invR')[invperm(piv), invperm(piv)]
-## and  Σ * v ≈ ((invR * M * invR') * v[piv])[invperm(piv)]
+# For VecchiaPivoted the Vecchia approx is applied to Σ[piv,piv].
+# so that Σ ≈ (invR * M * invR')[invperm(piv), invperm(piv)]
+# and  Σ * v ≈ ((invR * M * invR') * v[piv])[invperm(piv)]
 
-## represents inverse cov invΣ = R' * invM * R
+# represents inverse cov invΣ = R' * invM * R
 struct InvVecchia{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <: Factorization{T}
     R::Ridiagonal{T,RT}
     invM::Midiagonal{T,MT}
@@ -39,15 +39,15 @@ struct InvVecchiaPivoted{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}
     piv::Vector{Int} # permutation
 end
 
-## For InvVecchiaPivoted the same pivot transform is applied
-## and  Σ \ v ≈ ((R' * invM * R) * v[piv])[invperm(piv)]
+# For InvVecchiaPivoted the same pivot transform is applied
+# and  Σ \ v ≈ ((R' * invM * R) * v[piv])[invperm(piv)]
 
 InvVecc_or_Vecc{T}         = Union{Vecchia{T}, InvVecchia{T}} where {T}
 InvVecc_or_Vecc_Pivoted{T} = Union{VecchiaPivoted{T}, InvVecchiaPivoted{T}} where {T}
 
-## length(bsds) = nblocks
-## Block i has size bsds[i] × bsds[i]
-## length(R) = length(M) - 1
+# length(bsds) = nblocks
+# Block i has size bsds[i] × bsds[i]
+# length(R) = length(M) - 1
 
 # Constructor based on a BlockArray overlay
 # ================================================
@@ -63,7 +63,7 @@ function Vecchia(;diag_blocks::Vector{DM}, subdiag_blocks::Vector{sDM}) where {D
 		if i==1 
 			return diag_blocks[i]
 		else 
-			## return diag_blocks[i] + R.data[i-1] * subdiag_blocks[i-1]'
+			# return diag_blocks[i] + R.data[i-1] * subdiag_blocks[i-1]'
 			return diag_blocks[i] - subdiag_blocks[i-1] / diag_blocks[i-1] * subdiag_blocks[i-1]'
 		end
 	end |> Midiagonal
@@ -243,13 +243,13 @@ end
 
 # function inv_cholesky(V::Vecchia)
 # 	L⁻¹s = map(V.M.data) do M 
-# 		## inv(cholesky(Hermitian(M, :L)).L)
+# 		# inv(cholesky(Hermitian(M, :L)).L)
 # 		Matrix(inv(cholesky(Hermitian(M, :L)).L))
 # 	end 
-# 	## TODO try and use skyline block matrix for 
+# 	# TODO try and use skyline block matrix for 
 # 	BlockDiagonal(L⁻¹s) * Rmat(V)
 # end
 
-## TODO, this needs work. 
-## For one, need to add inv(cholesky(Σ)) -> pivoted LowerTriangular
-## or something like that
+# TODO, this needs work. 
+# For one, need to add inv(cholesky(Σ)) -> pivoted LowerTriangular
+# or something like that

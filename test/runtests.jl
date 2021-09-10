@@ -74,10 +74,10 @@ using LBblocks
         ## -----
         ## v = rand(Float64, sum(bs))
         ## -----
-        v1 = Ri \ (Ri * v)
-        v2 = Qi \ (Qi * v)
-        w1 = Ri * (Ri \ v)
-        w2 = Qi * (Qi \ v)
+        v1 = Ri \ Ri * v
+        v2 = Qi \ Qi * v
+        w1 = Ri * Ri \ v
+        w2 = Qi * Qi \ v
         @test v ≈ v1 rtol=1e-5
         @test v ≈ v2 rtol=1e-5
         @test v ≈ w1 rtol=1e-5
@@ -121,24 +121,20 @@ end
 @testset "Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted" begin
 
     K(x,y,θ) = exp(- θ * abs(x - y) ^ 0.8 )
-
-    # data parameters
     θtru    = 1.5
     nblocks, blocksz = 6, 150
     bsn    = fill(blocksz, nblocks) 
     n      = sum(bsn)
-    x    = vcat(range(0,4,length=n-100), 4*rand(100))
-    prm  = sortperm(x)
-
-    Σ     = PseudoBlockArray(K.(x, x', θtru), bsn, bsn)
-    # V     = Vecchia(Matrix(Σ), bsn)
-    V     = Vecchia(;
+    x      = vcat(range(0,4,length=n-100), 4*rand(100))
+    prm    = sortperm(x)
+    Σ      = PseudoBlockArray(K.(x, x', θtru), bsn, bsn)
+    V      = Vecchia(;
         diag_blocks=[Σ[Block(i,i)] for i = 1:nblocks],
         subdiag_blocks=[Σ[Block(i+1,i)] for i = 1:nblocks-1],
     )
-    Vᴾ    = VecchiaPivoted(Vecchia(Σ[prm,prm], bsn), prm)
-    matV  = Matrix(V)
-    matVᴾ = Matrix(Vᴾ)
+    Vᴾ     = VecchiaPivoted(Vecchia(Σ[prm,prm], bsn), prm)
+    matV   = Matrix(V)
+    matVᴾ  = Matrix(Vᴾ)
 
     v    = randn(size(V,1))
     Σv   = Σ * v
@@ -298,13 +294,21 @@ end
 
     IVapx = hcat(map(x->iV*x, eachcol(Σ))...)
 
+    #=
     using PyPlot
     fig, ax = subplots(2)
     ax[1].plot(real.(eigen(IVapx).values))
     ax[1].plot(zeros(size(IVapx,1)),":k")
     ax[2].plot(imag.(eigen(IVapx).values))
     ax[2].plot(zeros(size(IVapx,1)),":k")
-     
+    =#
+
 end
 
 
+## @testset "Inv" begin 
+## 
+##     @test VF.Inv(R') == VF.Inv(R)'
+## 
+## 
+## end
