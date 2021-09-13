@@ -9,7 +9,7 @@ using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal
 using FillArrays: Eye
 
 import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, 
-adjoint, transpose, Matrix
+adjoint, transpose, Matrix, sqrt, Hermitian, Symmetric, cholesky
 
 import Base: size, getindex, permute!, invpermute!, parent, show, 
 replace_in_print_matrix, rand, randn
@@ -65,22 +65,6 @@ adjoint(A::Inv_Adj_VecchiaFactor) = Inv(adjoint(A.parent)) # -> Inv_VecchiaFacto
 
 # Chain products by creating a tuple
 # ===========================================
-# the second argument type below is unionall 
-# ... this allows you to bipass for a specific InvOrAdjOrVecc
-
-function *(O1::A, O2::InvOrAdjOrVecc) where A<:InvOrAdjOrVecc 
-    tuple(O1, O2)
-end
-
-function \(O1::A, O2::InvOrAdjOrVecc) where A<:InvOrAdjOrVecc 
-    inv(O1) * O2
-end
-
-function /(O1::A, O2::InvOrAdjOrVecc) where A<:InvOrAdjOrVecc 
-    O1 * inv(O2) 
-end
-
-# the remaining chain rules
 include("op_chain.jl")
 
 # two specific VecchiaFactors
@@ -88,7 +72,10 @@ include("op_chain.jl")
 include("mi_ri_qi_diag.jl")
 include("pivot_type.jl") # TODO: standardize this as a Vecchia factor
 
-#-------------------------
+# Full vecchia factorization 
+# ===========================================
+# ... slated for removal once a constructor works for the NTuple representation
+# and once we have code for recovering the factors from the tri-diagonal blocks
 include("vecchia.jl")
 
 end

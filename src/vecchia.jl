@@ -86,6 +86,7 @@ function InvVecchiaPivoted(V::InvVecchia, piv::Vector{Int})
 	InvVecchiaPivoted(V.R, V.invM, V.bsds, piv)
 end
 
+
 # left mult methods, non-pivoted
 # ============================
 

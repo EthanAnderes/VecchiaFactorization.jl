@@ -219,6 +219,12 @@ randn(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz
 randn(::Type{A}, bs::Vector{Int}) where {T,A<:Qidiagonal{T}} = Qidiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
 
 
+sqrt(M::Midiagonal)      = Midiagonal(map(sqrt, M.data)) 
+Hermitian(M::Midiagonal) = Midiagonal(map(x->Hermitian(x,:L), M.data)) 
+Symmetric(M::Midiagonal) = Midiagonal(map(x->Symmetric(x,:L), M.data)) 
+cholesky(M::Midiagonal)  = Midiagonal(map(x->cholesky(x).L, M.data)) 
+
+
 # AbstractMatrix methods
 # =================
 
@@ -284,9 +290,7 @@ function replace_in_print_matrix(MRQ::MiRiQi, i::Integer, j::Integer, s::Abstrac
     fbj = findblockindex(row_or_col_Ix, j)
     Block4i = fbi.I[1]
     Block4j = fbj.I[1]
-    if i==j
-        return Base.replace_with_centered_mark(s;c='1')
-    elseif (MRQ isa Ridiagonal) && (Block4i == Block4j + 1)
+    if (MRQ isa Ridiagonal) && (Block4i == Block4j + 1)
         return s 
     elseif (MRQ isa Qidiagonal) && (Block4i + 1 == Block4j)
         return s
