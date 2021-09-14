@@ -83,9 +83,9 @@ end
 # activate the lazy tuple when operating
 # ------------------------------------
 
-function mul!(rf::AbstractVector, O1::NTuple{N,InvOrAdjOrVecc}, f::AbstractVector) where N
-    copyto!(rf, O1 * f) # is there a better way to do this?
-end
+# function mul!(rf::AbstractVector, O1::NTuple{N,InvOrAdjOrVecc}, f::AbstractVector) where N
+#     copyto!(rf, O1 * f) # is there a better way to do this?
+# end
 
 function *(O1::NTuple{N,InvOrAdjOrVecc}, f::AbstractVector) where N
     foldr(*, (O1..., f))
@@ -95,9 +95,9 @@ function \(O1::NTuple{N,InvOrAdjOrVecc}, f::AbstractVector) where N
     inv(O1) * f
 end 
 
-function ldiv!(O1::NTuple{N,InvOrAdjOrVecc}, f::AbstractVector) where N
-    mul!(f, inv(O1), copy(f))
-end
+# function ldiv!(O1::NTuple{N,InvOrAdjOrVecc}, f::AbstractVector) where N
+#     mul!(f, inv(O1), copy(f))
+# end
 
 # ---------------------------------------------- 
 

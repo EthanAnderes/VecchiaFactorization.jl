@@ -4,9 +4,10 @@ using LinearAlgebra # BLAS.set_num_threads(1)
 using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block, 
 blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
 
-# slated for removal
-using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal
-using FillArrays: Eye
+using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal # slated for removal
+using FillArrays: Eye # slated for removal
+import ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
+					# but for small matrices this doesn't appear to help
 
 import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, 
 adjoint, transpose, Matrix, sqrt, Hermitian, Symmetric, cholesky
@@ -36,7 +37,7 @@ inv(A::VecchiaFactor)         = Inv(A)    # -> Inv_VecchiaFactor
 inv(A::Inv_VecchiaFactor)     = A.parent  # -> VecchiaFactor
 inv(A::Adj_VecchiaFactor)     = Inv(A)    # -> Inv_Adj_VecchiaFactor
 inv(A::Inv_Adj_VecchiaFactor) = A.parent  # -> Adj_VecchiaFactor
-pinv(A::InvOrAdjOrVecc) = inv(A)
+pinv(A::InvOrAdjOrVecc)       = inv(A)
 
 # adjoint automatically creats an Adjoint (you can bypass these)
 # adjoint(A::VecchiaFactor)     # automatic -> Adj_VecchiaFactor

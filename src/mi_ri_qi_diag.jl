@@ -106,6 +106,10 @@ function mul!(rw::AbstractVector, RQ::A, w::AbstractVector) where {A<:Union{RiQi
     lmul!(RQ, rw)
 end
 
+function mul!(rw::AbstractVector, M::A, w::AbstractVector) where {A<:Union{Midiagonal, Adjoint{<:Any,<:Midiagonal}}}
+    mul!(rw, M, w, true, false)
+end
+
 function mul!(rw::AbstractVector, M::A, w::AbstractVector, α::Number, β::Number) where {A<:Midiagonal}
     rwB, wB = _pblock_array(M, rw, w)
     for i = 1:length(wB)
@@ -220,8 +224,9 @@ randn(::Type{A}, bs::Vector{Int}) where {T,A<:Qidiagonal{T}} = Qidiagonal(map(sz
 
 
 sqrt(M::Midiagonal)      = Midiagonal(map(sqrt, M.data)) 
-Hermitian(M::Midiagonal) = Midiagonal(map(x->Hermitian(x,:L), M.data)) 
-Symmetric(M::Midiagonal) = Midiagonal(map(x->Symmetric(x,:L), M.data)) 
+Matrix(M::Midiagonal)    = Midiagonal(map(Matrix, M.data)) 
+Hermitian(M::Midiagonal) = Midiagonal(map(x->Hermitian(x), M.data)) 
+Symmetric(M::Midiagonal) = Midiagonal(map(x->Symmetric(x), M.data)) 
 cholesky(M::Midiagonal)  = Midiagonal(map(x->cholesky(x).L, M.data)) 
 
 
