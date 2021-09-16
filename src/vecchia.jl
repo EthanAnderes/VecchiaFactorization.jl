@@ -47,12 +47,16 @@ InvVecc_or_Vecc_Pivoted{T} = Union{VecchiaPivoted{T}, InvVecchiaPivoted{T}} wher
 function Vecchia(;diag_blocks::Vector{DM}, subdiag_blocks::Vector{sDM}) where {DM<:AbstractMatrix, sDM<:AbstractMatrix}
 	nblocks = length(diag_blocks)
 	@assert length(subdiag_blocks) == nblocks - 1
-	R = map(1:nblocks-1) do i 
-		- subdiag_blocks[i] / diag_blocks[i]
+	R = map(1:nblocks-1) do i
+		if sum(abs2, diag_blocks[i]) == 0
+			return diag_blocks[i]
+		else
+			return - subdiag_blocks[i] / diag_blocks[i]
+		end
 	end |> Ridiagonal
 
 	M = map(1:nblocks) do i 
-		if i==1 
+		if (i==1) | (sum(abs2, diag_blocks[i]) == 0)
 			return diag_blocks[i]
 		else 
 			# return diag_blocks[i] + R.data[i-1] * subdiag_blocks[i-1]'
