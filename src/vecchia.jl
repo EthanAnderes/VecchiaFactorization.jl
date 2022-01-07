@@ -1,7 +1,7 @@
 # Vecchia and InvVecchia with pivoted versions of both
 # ============================================================
 
-## represents cov Σ = invR * M * invR'
+## represents factorization Σ = R⁻¹⋅M⋅(R⁻¹)ᵀ
 struct Vecchia{T<:Number, RT<:AbstractMatrix{T}, MT<:AbstractMatrix{T}} <: Factorization{T}
     R::Ridiagonal{T,RT}
     M::Midiagonal{T,MT}
@@ -56,15 +56,15 @@ function Vecchia(;diag_blocks::Vector{DM}, subdiag_blocks::Vector{sDM}) where {D
 	end |> Ridiagonal
 
 	M = map(1:nblocks) do i 
-		if (i==1) | (sum(abs2, diag_blocks[i]) == 0)
+		if (i==1) || (sum(abs2, diag_blocks[i-1]) == 0)
 			return diag_blocks[i]
 		else 
-			# return diag_blocks[i] + R.data[i-1] * subdiag_blocks[i-1]'
-			return diag_blocks[i] - subdiag_blocks[i-1] / diag_blocks[i-1] * subdiag_blocks[i-1]'
+			return diag_blocks[i] + R.data[i-1] * subdiag_blocks[i-1]'
+			## return diag_blocks[i] - subdiag_blocks[i-1] / diag_blocks[i-1] * subdiag_blocks[i-1]'
 		end
 	end |> Midiagonal
 
-	Vecchia(R, M, diag_block_dlengths(M))
+	Vecchia(R, M, block_size(M,2))
 end
 
 function Vecchia(Σ::AbstractBlockMatrix)
@@ -75,6 +75,8 @@ function Vecchia(Σ::AbstractBlockMatrix)
 		subdiag_blocks=[Σ[i+1,i] for i in bi[1:end-1]],
 	)
 end
+
+
 
 function Vecchia(Σ::Matrix, bsn::Vector{Int})
 	n, m = size(Σ)
@@ -164,17 +166,17 @@ end
 # other LinearAlgebra methods
 # ====================================
 
-function Rmat(V::InvVecc_or_Vecc{T}) where {T}
-	nb  = length(V.bsds)
-	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
-	BlockBidiagonal(👀, V.R.data, :L)
-end
+# function Rmat(V::InvVecc_or_Vecc{T}) where {T}
+# 	nb  = length(V.bsds)
+# 	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
+# 	BlockBidiagonal(👀, V.R.data, :L)
+# end
 
-function Rᴴmat(V::InvVecc_or_Vecc{T}) where {T}
-	nb  = length(V.bsds)
-	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
-	BlockBidiagonal(👀, map(x->Matrix(x'), V.R.data), :U)
-end
+# function Rᴴmat(V::InvVecc_or_Vecc{T}) where {T}
+# 	nb  = length(V.bsds)
+# 	👀  = map(b->Matrix(Eye{T}(b)), V.bsds)
+# 	BlockBidiagonal(👀, map(x->Matrix(x'), V.R.data), :U)
+# end
 
 # pinv(V)  and inv(V)
 # ----------------------------
@@ -200,37 +202,37 @@ size(V::InvVecc_or_Vecc_Pivoted{T}, d) where {T} = d::Integer <= 2 ? size(V)[d] 
 # Matrix(V) 
 # ----------------------------
 
-# Σ = invR * M * invR'
-function Matrix(V::Vecchia)
-	M    = BlockDiagonal(V.M.data)
-	invR = inv(Rmat(V))
-	Matrix(invR  * M * invR')
-end
+# # Σ = invR * M * invR'
+# function Matrix(V::Vecchia)
+# 	M    = BlockDiagonal(V.M.data)
+# 	invR = inv(Rmat(V))
+# 	Matrix(invR  * M * invR')
+# end
 
-# Σ = Pᵀ * invR * M * invR' * P
-function Matrix(Vᴾ::VecchiaPivoted)
-	V      = Vecchia(Vᴾ.R, Vᴾ.M, Vᴾ.bsds)
-	invpiv = invperm(Vᴾ.piv) 
-	M      = BlockDiagonal(V.M.data)
-	invR   = inv(Rmat(V))
-	Matrix(invR  * M * invR')[invpiv, invpiv]
-end
+# # Σ = Pᵀ * invR * M * invR' * P
+# function Matrix(Vᴾ::VecchiaPivoted)
+# 	V      = Vecchia(Vᴾ.R, Vᴾ.M, Vᴾ.bsds)
+# 	invpiv = invperm(Vᴾ.piv) 
+# 	M      = BlockDiagonal(V.M.data)
+# 	invR   = inv(Rmat(V))
+# 	Matrix(invR  * M * invR')[invpiv, invpiv]
+# end
 
-# invΣ = R' * invM * R
-function Matrix(iV::InvVecchia{T}) where {T}
-	invM = BlockDiagonal(iV.invM.data)
-	R    = Rmat(iV)
-	Matrix(R' * invM * R)
-end
+# # invΣ = R' * invM * R
+# function Matrix(iV::InvVecchia{T}) where {T}
+# 	invM = BlockDiagonal(iV.invM.data)
+# 	R    = Rmat(iV)
+# 	Matrix(R' * invM * R)
+# end
 
-# invΣ = Pᵀ * R' * invM * R * P
-function Matrix(iVᴾ::InvVecchiaPivoted{T}) where {T}
-	iV      = InvVecchia(iVᴾ.R, iVᴾ.invM, iVᴾ.bsds)
-	invpiv = invperm(iVᴾ.piv) 
-	invM = BlockDiagonal(iV.invM.data)
-	R    = Rmat(iV)
-	Matrix(R' * invM * R)[invpiv, invpiv]
-end
+# # invΣ = Pᵀ * R' * invM * R * P
+# function Matrix(iVᴾ::InvVecchiaPivoted{T}) where {T}
+# 	iV      = InvVecchia(iVᴾ.R, iVᴾ.invM, iVᴾ.bsds)
+# 	invpiv = invperm(iVᴾ.piv) 
+# 	invM = BlockDiagonal(iV.invM.data)
+# 	R    = Rmat(iV)
+# 	Matrix(R' * invM * R)[invpiv, invpiv]
+# end
 
 
 # inv_cholesky gives inv(cholesky(Σ)) -> LowerTriangular

@@ -5,7 +5,9 @@ using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block,
 blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
 
 using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal # slated for removal
-using FillArrays: Eye # slated for removal
+# using FillArrays: Eye # slated for removal
+using SparseArrays: spdiagm
+import SparseArrays: sparse
 import ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
 					# but for small matrices this doesn't appear to help
 
@@ -16,7 +18,7 @@ import Base: size, getindex, permute!, invpermute!, parent, show,
 replace_in_print_matrix, rand, randn
 
 export Inv, Ridiagonal, Qidiagonal, Midiagonal, Piv,
-Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted
+Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted, sparse
 
 # VecchiaFactor{T}
 # ===========================================
