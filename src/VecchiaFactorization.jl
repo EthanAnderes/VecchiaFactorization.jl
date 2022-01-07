@@ -17,8 +17,8 @@ adjoint, transpose, Matrix, sqrt, Hermitian, Symmetric, cholesky
 import Base: size, getindex, permute!, invpermute!, parent, show, 
 replace_in_print_matrix, rand, randn
 
-export Inv, Ridiagonal, Qidiagonal, Midiagonal, Piv,
-Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted, sparse
+export Inv, Piv, Ridiagonal,  Midiagonal, sparse # ,Qidiagonal, 
+# Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted, 
 
 # VecchiaFactor{T}
 # ===========================================
@@ -79,6 +79,6 @@ include("pivot_type.jl") # TODO: standardize this as a Vecchia factor
 # ===========================================
 # ... slated for removal once a constructor works for the NTuple representation
 # and once we have code for recovering the factors from the tri-diagonal blocks
-include("vecchia.jl")
+# include("vecchia.jl")
 
 end
