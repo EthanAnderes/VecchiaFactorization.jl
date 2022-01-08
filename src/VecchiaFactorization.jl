@@ -1,15 +1,15 @@
 module VecchiaFactorization
 
 using LinearAlgebra # BLAS.set_num_threads(1)
-using BlockArrays: PseudoBlockArray, AbstractBlockMatrix, Block, 
-blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
 
-using BlockBandedMatrices: BlockDiagonal, BlockBidiagonal # slated for removal
-# using FillArrays: Eye # slated for removal
 using SparseArrays: spdiagm
 import SparseArrays: sparse
-import ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
+
+using ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
 					# but for small matrices this doesn't appear to help
+
+using BlockArrays: PseudoBlockArray,  Block, 
+blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
 
 import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, 
 adjoint, transpose, Matrix, sqrt, Hermitian, Symmetric, cholesky
@@ -17,8 +17,7 @@ adjoint, transpose, Matrix, sqrt, Hermitian, Symmetric, cholesky
 import Base: size, getindex, permute!, invpermute!, parent, show, 
 replace_in_print_matrix, rand, randn
 
-export Inv, Piv, Ridiagonal,  Midiagonal, sparse # ,Qidiagonal, 
-# Vecchia, InvVecchia, VecchiaPivoted, InvVecchiaPivoted, 
+export Ridiagonal, Midiagonal, Inv, Piv, sparse
 
 # VecchiaFactor{T}
 # ===========================================
@@ -34,7 +33,7 @@ const Inv_VecchiaFactor{T}     = Inv{T,<:VecchiaFactor}
 const Inv_Adj_VecchiaFactor{T} = Inv{T,<:Adj_VecchiaFactor}
 const InvOrAdjOrVecc = Union{VecchiaFactor, Adj_VecchiaFactor, Inv_VecchiaFactor, Inv_Adj_VecchiaFactor}
 
-# inv creats and Inv generically (you can bypass these)
+# inv creates Inv generically (you can bypass these)
 inv(A::VecchiaFactor)         = Inv(A)    # -> Inv_VecchiaFactor
 inv(A::Inv_VecchiaFactor)     = A.parent  # -> VecchiaFactor
 inv(A::Adj_VecchiaFactor)     = Inv(A)    # -> Inv_Adj_VecchiaFactor
@@ -46,7 +45,6 @@ pinv(A::InvOrAdjOrVecc)       = inv(A)
 adjoint(A::Inv_VecchiaFactor)     = Inv(adjoint(A.parent))  # -> Inv_Adj_VecchiaFactor
 adjoint(A::Adj_VecchiaFactor)     = A.parent               # -> VecchiaFactor
 adjoint(A::Inv_Adj_VecchiaFactor) = Inv(adjoint(A.parent)) # -> Inv_VecchiaFactor
-
 
 # for operating on vectors the base methods are these (define them for each new type)
 # mul!(w, ::VecchiaFactor, v)
@@ -72,13 +70,8 @@ include("op_chain.jl")
 
 # two specific VecchiaFactors
 # ===========================================
-include("mi_ri_qi_diag.jl")
+include("mi_ri.jl")
 include("pivot_type.jl") # TODO: standardize this as a Vecchia factor
 
-# Full vecchia factorization 
-# ===========================================
-# ... slated for removal once a constructor works for the NTuple representation
-# and once we have code for recovering the factors from the tri-diagonal blocks
-# include("vecchia.jl")
 
 end
