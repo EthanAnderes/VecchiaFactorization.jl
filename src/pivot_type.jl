@@ -3,9 +3,9 @@
 
 struct Piv <: VecchiaFactor{Bool}
     perm::Vector{Int}
-    function Piv(p::Vector{Int})
-        @assert sort(p) == 1:length(p)
-        new(p)
+    function Piv(p::AbstractVector{<:Integer})
+        @assert isperm(p)
+        new(collect(p))
     end
 end
 
@@ -61,6 +61,4 @@ function getindex(p::Piv, i::Integer, j::Integer)
     (p.perm[i] == j) ? true : false 
 end
 
-function replace_in_print_matrix(p::Piv, i::Integer, j::Integer, s::AbstractString) 
-    p[i,j] ? s : Base.replace_with_centered_mark(s)
-end
+Base.show(io::IO, m::MIME"text/plain", p::Piv) = show(io, m, sparse(p))

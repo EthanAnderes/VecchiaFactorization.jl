@@ -73,5 +73,8 @@ include("op_chain.jl")
 include("mi_ri.jl")
 include("pivot_type.jl") # TODO: standardize this as a Vecchia factor
 
+# constructor Vecchia factorization
+# ===========================================
+include("vecchia_approx.jl")
 
 end

@@ -247,17 +247,5 @@ function getindex(M::Midiagonal{T}, i::Integer, j::Integer) where T
     end
 end
 
-function replace_in_print_matrix(MR::MiRi, i::Integer, j::Integer, s::AbstractString)
-    row_or_col_Ix = blockedrange(block_size(MR,1))
-    fbi = findblockindex(row_or_col_Ix, i)
-    fbj = findblockindex(row_or_col_Ix, j)
-    Block4i = fbi.I[1]
-    Block4j = fbj.I[1]
-    if (MR isa Ridiagonal) && (Block4i == Block4j + 1)
-        return s 
-    elseif (MR isa Midiagonal) && (Block4i == Block4j)
-        return s  
-    else 
-        return Base.replace_with_centered_mark(s)
-    end
-end
+Base.show(io::IO, m::MIME"text/plain", M::Midiagonal{T}) where T = show(io, m, sparse(M))
+Base.show(io::IO, m::MIME"text/plain", R::Ridiagonal{T}) where T = show(io, m, sparse(R))
