@@ -8,6 +8,40 @@ using Test
 using LBblocks
 
 
+@testset "util.jl" begin 
+
+    @test VF.block_split(20, 10) == [10,10]    
+    @test VF.block_split(20, 5) == [5,5,5,5] 
+    @test VF.block_split(20, 11) == [11,9]   
+    @test VF.block_split(11, 11) == [11]   
+    @test VF.block_split(11, 10) == [10,1]   
+
+end
+
+
+@testset "vecchia_approx.jl" begin 
+
+    n = 320 
+
+    Σ = @sblock let θtru = 1.5, n
+        K = (x,y,θtru) -> exp(- θtru * abs(x - y) ^ 0.8 )
+        x = range(0,4,n)
+        K.(x, x', θtru)
+    end
+
+    block_sizes = [100, 150, 20, 50]
+    perm = sortperm(@. sin((1:n)*2*π/n))
+
+    R1, M1 = VF.R_M_P(Σ, block_sizes, perm)
+    R2, M2 = VF.R_M_P(Σ[perm, perm], block_sizes)
+    R3, M3 = VF.R_M_P((i,j) -> Σ[i,j], block_sizes, perm)
+
+    @test VF.sparse(R1) ≈ VF.sparse(R2) ≈ VF.sparse(R3)
+    @test VF.sparse(M1) ≈ VF.sparse(M2) ≈ VF.sparse(M3)
+
+end
+
+
 @testset "Ridiagonal and Qidiagonal" begin 
 
     @sblock let 

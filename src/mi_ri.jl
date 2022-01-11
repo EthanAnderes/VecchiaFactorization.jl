@@ -2,7 +2,7 @@
 # ============================================================
 
 """
-R <: Ridiagonal ≡ R₂ ⋯ RₙRₙ₋₁ is block bidiagonal on subdiagonal
+R <: Ridiagonal ≡ R₂ ⋯ Rₙ₋₁Rₙ is block bidiagonal on subdiagonal
 M <: Midiagonal ≡ block_diag(M₁, ⋯ ,Mₙ) is block diagonal
 
 with R.data == [R₂, …, Rₙ]

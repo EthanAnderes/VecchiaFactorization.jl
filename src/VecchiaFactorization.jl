@@ -77,4 +77,7 @@ include("pivot_type.jl") # TODO: standardize this as a Vecchia factor
 # ===========================================
 include("vecchia_approx.jl")
 
+# ===========================================
+include("util.jl")
+
 end
