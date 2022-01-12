@@ -1,17 +1,29 @@
 # constructor for the vecchia factorization approxiamtion
 
+"""
+Vecchia Factorization approximation:
+```
+vecchia(Σ, blk_sizes) -> R⁻¹ M R⁻ᴴ
+```
+Pivoted Vecchia Factorization approximation:
+```
+vecchia(Σ, blk_sizes, perm) -> Pᵀ R⁻¹ M R⁻ᴴ P
+```
+where `Σ::Union{AbstractMatrix, Function}`. 
+"""
+function vecchia end 
+
 function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
 	R, M, P = R_M_P(Σ, blk_sizes, perm)
-    println("Vecchia Factorization approximation: Pᵀ R⁻¹ M R⁻ᴴ P")
+    # println("Vecchia Factorization approximation: Pᵀ R⁻¹ M R⁻ᴴ P")
 	return P' * inv(R) * M * inv(R)' * P
 end
 
 function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
 	R, M, P = R_M_P(Σ, blk_sizes)
-    println("Vecchia Factorization approximation: R⁻¹ M R⁻ᴴ")
+    # println("Vecchia Factorization approximation: R⁻¹ M R⁻ᴴ")
 	return inv(R) * M * inv(R)'
 end
-
 
 function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes)) where T
 	LinearAlgebra.checksquare(Σ)
@@ -34,7 +46,6 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
 
     return Ridiagonal(R), Midiagonal(M), Piv(perm)
 end
-
 
 # QUESTION: it seems redundant to have two of these R_M_P methods. Perhaps we should just have this one then use dispatch 
 # on vecchia(...) above to pass the correct argument

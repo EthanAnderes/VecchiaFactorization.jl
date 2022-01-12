@@ -6,7 +6,7 @@ using SparseArrays: spdiagm
 import SparseArrays: sparse
 
 using ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
-					# but for small matrices this doesn't appear to help
+				   # but for small matrices this doesn't appear to help
 
 using BlockArrays: PseudoBlockArray,  Block, 
 blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
