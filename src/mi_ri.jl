@@ -125,13 +125,6 @@ function mul!(rw::AbstractVector, Mᴴ::A, w::AbstractVector, α::Number, β::Nu
 end
 
 
-
-
-# what about rdiv! and rmul! ???
-# ---------------------------------
-
-
-
 # Non-interface methods
 # ================================================
 
@@ -170,45 +163,8 @@ end
 sizes_from_blocksides(::Type{<:Midiagonal}, bs::Vector{Int}) = [(bs[i],bs[i]) for i=1:length(bs)]
 sizes_from_blocksides(::Type{<:Ridiagonal}, bs::Vector{Int}) = [(bs[i+1],bs[i]) for i=1:length(bs)-1]
 
-
-
-# Convienence (not sure if we want these ?)
-# =================
-
-rand(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
-rand(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
-
-randn(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
-randn(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
-
-# an alternative to these is to simply overload map to reconsititue a Midiagonal?
-sqrt(M::Midiagonal)      = Midiagonal(map(sqrt, M.data)) 
-Hermitian(M::Midiagonal) = Midiagonal(map(x->Hermitian(x), M.data)) 
-Symmetric(M::Midiagonal) = Midiagonal(map(x->Symmetric(x), M.data)) 
-cholesky(M::Midiagonal)  = Midiagonal(map(x->cholesky(x).L, M.data)) 
-
-# Conver Midiagonal, Ridiagonal to sparse arrays
-# =================
-
-sparse(M::Midiagonal) = sparse(mortar(Diagonal(M.data)))
-
-function sparse(R::Ridiagonal{T}) where {T}
-    n           = size(R,1)
-    block_sizes = block_size(R,1)
-    Rmat = PseudoBlockArray(
-        spdiagm(fill(one(T),n)), 
-        block_sizes, 
-        block_sizes
-    )
-    for i=1:length(R.data)
-        Rmat[Block(i+1,i)] .= R.data[i] 
-    end
-    sparse(Rmat)
-end
-
-
 # AbstractMatrix methods
-# =================
+# =================================================
 
 size(MR::MiRi)    = (n = sum(block_size(MR,1)); (n,n))
 size(MR::MiRi, d) = d::Integer <= 2 ? size(MR)[d] : 1
@@ -247,5 +203,18 @@ function getindex(M::Midiagonal{T}, i::Integer, j::Integer) where T
     end
 end
 
-Base.show(io::IO, m::MIME"text/plain", M::Midiagonal{T}) where T = show(io, m, sparse(M))
-Base.show(io::IO, m::MIME"text/plain", R::Ridiagonal{T}) where T = show(io, m, sparse(R))
+
+# Convienence (not sure if we want these ?)
+# =================================================
+
+rand(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+rand(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+
+randn(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+randn(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+
+# an alternative to these is to simply overload map to reconsititue a Midiagonal?
+sqrt(M::Midiagonal)      = Midiagonal(map(sqrt, M.data)) 
+Hermitian(M::Midiagonal) = Midiagonal(map(x->Hermitian(x), M.data)) 
+Symmetric(M::Midiagonal) = Midiagonal(map(x->Symmetric(x), M.data)) 
+cholesky(M::Midiagonal)  = Midiagonal(map(x->cholesky(x).L, M.data)) 

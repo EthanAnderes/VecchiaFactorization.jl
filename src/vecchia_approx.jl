@@ -9,9 +9,31 @@ Pivoted Vecchia Factorization approximation:
 ```
 vecchia(Σ, blk_sizes, perm) -> Pᵀ R⁻¹ M R⁻ᴴ P
 ```
-where `Σ::Union{AbstractMatrix, Function}`. 
+where the argument where `Σ` is an `AbstractMatrix` or a `Function` taking indices `(i,j)` and 
+returning `Σ[i,j]`.
 """
 function vecchia end 
+
+
+
+"""
+Construct individual factors in the Pivoted Vecchia approximation `Pᵀ R⁻¹ M R⁻ᴴ P`.
+```
+R_M_P(Σ, blk_sizes, perm) -> R, M, P
+```
+where the argument where `Σ` is an `AbstractMatrix` or a `Function` taking indices `(i,j)` and 
+returning `Σ[i,j]`. The return values have the following types:
+```
+R <: Ridiagonal
+M <: Midiagonal
+P <: Piv
+```
+"""
+function R_M_P end 
+
+
+
+
 
 function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
 	R, M, P = R_M_P(Σ, blk_sizes, perm)

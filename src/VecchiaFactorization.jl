@@ -1,6 +1,10 @@
 module VecchiaFactorization
 
+import Base: size, getindex, permute!, invpermute!, parent, show, rand, randn
+
 using LinearAlgebra # BLAS.set_num_threads(1)
+import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, 
+adjoint, transpose, Matrix, sqrt, Hermitian, Symmetric, cholesky
 
 using SparseArrays: spdiagm
 import SparseArrays: sparse
@@ -10,12 +14,6 @@ using ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
 
 using BlockArrays: PseudoBlockArray,  Block, 
 blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
-
-import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, 
-adjoint, transpose, Matrix, sqrt, Hermitian, Symmetric, cholesky
-
-import Base: size, getindex, permute!, invpermute!, parent, show, 
-replace_in_print_matrix, rand, randn
 
 export Ridiagonal, Midiagonal, Inv, Piv, sparse
 
@@ -28,7 +26,7 @@ abstract type VecchiaFactor{T} <: AbstractMatrix{T} end
 # ===========================================
 include("lazy_inv.jl")
 
-const Adj_VecchiaFactor{T}     = Adjoint{<:Any,<:VecchiaFactor}
+const Adj_VecchiaFactor{T}     = Adjoint{T,<:VecchiaFactor}
 const Inv_VecchiaFactor{T}     = Inv{T,<:VecchiaFactor}
 const Inv_Adj_VecchiaFactor{T} = Inv{T,<:Adj_VecchiaFactor}
 const InvOrAdjOrVecc = Union{VecchiaFactor, Adj_VecchiaFactor, Inv_VecchiaFactor, Inv_Adj_VecchiaFactor}
@@ -64,6 +62,7 @@ adjoint(A::Inv_Adj_VecchiaFactor) = Inv(adjoint(A.parent)) # -> Inv_VecchiaFacto
 \(iVF::A,  w::AbstractVector) where {A<:Inv_VecchiaFactor}     = inv(iVF) * w
 \(iVFᴴ::A, w::AbstractVector) where {A<:Inv_Adj_VecchiaFactor} = inv(iVFᴴ) * w
 
+
 # Chain products by creating a tuple
 # ===========================================
 include("op_chain.jl")
@@ -73,11 +72,16 @@ include("op_chain.jl")
 include("mi_ri.jl")
 include("pivot_type.jl") # TODO: standardize this as a Vecchia factor
 
+# constructing sparse or matrix equivalents
+# ===========================================
+include("sparse_matrix_show.jl")
+
 # constructor Vecchia factorization
 # ===========================================
 include("vecchia_approx.jl")
 
 # ===========================================
 include("util.jl")
+
 
 end

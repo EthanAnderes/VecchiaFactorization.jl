@@ -8,18 +8,7 @@ using Test
 using LBblocks
 
 
-@testset "util.jl" begin 
-
-    @test VF.block_split(20, 10) == [10,10]    
-    @test VF.block_split(20, 5) == [5,5,5,5] 
-    @test VF.block_split(20, 11) == [11,9]   
-    @test VF.block_split(11, 11) == [11]   
-    @test VF.block_split(11, 10) == [10,1]   
-
-end
-
-
-@testset "vecchia_approx.jl" begin 
+@testset "vecchia_approx.jl and sparse_matrix_show.jl" begin 
 
     n = 320 
 
@@ -32,12 +21,32 @@ end
     block_sizes = [100, 150, 20, 50]
     perm = sortperm(@. sin((1:n)*2*π/n))
 
-    R1, M1 = VF.R_M_P(Σ, block_sizes, perm)
-    R2, M2 = VF.R_M_P(Σ[perm, perm], block_sizes)
-    R3, M3 = VF.R_M_P((i,j) -> Σ[i,j], block_sizes, perm)
+    R1, M1, P1 = VF.R_M_P(Σ, block_sizes, perm)
+    R2, M2, P2 = VF.R_M_P(Σ[perm, perm], block_sizes)
+    R3, M3, P3 = VF.R_M_P((i,j) -> Σ[i,j], block_sizes, perm)
 
     @test VF.sparse(R1) ≈ VF.sparse(R2) ≈ VF.sparse(R3)
     @test VF.sparse(M1) ≈ VF.sparse(M2) ≈ VF.sparse(M3)
+    @test VF.sparse(P1) ≈ VF.sparse(P3)
+
+    @test VF.Matrix(R1) ≈ VF.Matrix(R2) ≈ VF.Matrix(R3)
+    @test VF.Matrix(M1) ≈ VF.Matrix(M2) ≈ VF.Matrix(M3)
+    @test VF.Matrix(P1) ≈ VF.Matrix(P3)
+
+    @test VF.sparse(R1') ≈ VF.sparse(R1)';
+    @test VF.sparse(M1') ≈ VF.sparse(M1)';
+    @test VF.sparse(P1') ≈ VF.sparse(P1)';
+
+    VΣ = VF.vecchia(Σ, block_sizes, perm)
+    VF.sparse(inv(VΣ))
+    VF.sparse(inv(adjoint(VΣ)))
+    VF.sparse(adjoint(inv(VΣ)))
+
+    VF.Matrix(VΣ)
+    VF.Matrix(inv(VΣ))
+    VF.Matrix(adjoint(VΣ))
+    VF.Matrix(inv(adjoint(VΣ)))
+    VF.Matrix(adjoint(inv(VΣ)))
 
 end
 
@@ -364,3 +373,17 @@ end
 ## 
 ## 
 ## end
+
+
+
+
+@testset "util.jl" begin 
+
+    @test VF.block_split(20, 10) == [10,10]    
+    @test VF.block_split(20, 5) == [5,5,5,5] 
+    @test VF.block_split(20, 11) == [11,9]   
+    @test VF.block_split(11, 11) == [11]   
+    @test VF.block_split(11, 10) == [10,1]   
+
+end
+

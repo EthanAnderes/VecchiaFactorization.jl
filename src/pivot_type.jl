@@ -52,13 +52,7 @@ invpermute!(v::AbstractVector, p::Piv) = invpermute!(v, p.perm)
 # /(p::Piv, m::Adjoint{<:Any, <:AbstractMatrix}) = p * pinv(m)
 # /(m::Adjoint{<:Any, <:AbstractMatrix}, p::Piv) = m * pinv(p)
 
-function sparse(p::Piv)
-    n = length(p.perm)
-    sparse(1:n, p.perm, fill(true,n)) 
-end
 
 function getindex(p::Piv, i::Integer, j::Integer) 
     (p.perm[i] == j) ? true : false 
 end
-
-Base.show(io::IO, m::MIME"text/plain", p::Piv) = show(io, m, sparse(p))
