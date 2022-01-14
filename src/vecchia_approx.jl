@@ -15,6 +15,20 @@ returning `Σ[i,j]`.
 function vecchia end 
 
 
+"""
+Cholesky of Vecchia Factorization approximation:
+```
+vecchia_chol(Σ, blk_sizes) -> R⁻¹ cholesky(M)
+```
+Pivoted Cholesky of Vecchia Factorization approximation:
+```
+vecchia_chol(Σ, blk_sizes, perm) -> Pᵀ R⁻¹ cholesky(M) P
+```
+where the argument where `Σ` is an `AbstractMatrix` or a `Function` taking indices `(i,j)` and 
+returning `Σ[i,j]`.
+"""
+function vecchia_chol end 
+
 
 """
 Construct individual factors in the Pivoted Vecchia approximation `Pᵀ R⁻¹ M R⁻ᴴ P`.
@@ -47,6 +61,21 @@ function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{
 	return inv(R) * M * inv(R)'
 end
 
+
+function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
+    R, M, P = R_M_P(Σ, blk_sizes, perm)
+    preM′ = map(Md -> cholesky(Md).L, M.data)
+    P' * inv(R) * Midiagonal(preM′) * P
+end
+
+
+function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
+    R, M, P = R_M_P(Σ, blk_sizes)
+    preM′ = map(Md -> cholesky(Md).L, M.data)
+    inv(R) * Midiagonal(preM′)
+end
+
+
 function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes)) where T
 	LinearAlgebra.checksquare(Σ)
 	@assert isperm(perm)
@@ -69,8 +98,6 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
     return Ridiagonal(R), Midiagonal(M), Piv(perm)
 end
 
-# QUESTION: it seems redundant to have two of these R_M_P methods. Perhaps we should just have this one then use dispatch 
-# on vecchia(...) above to pass the correct argument
 function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes))
 	@assert isperm(perm)
 

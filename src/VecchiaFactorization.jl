@@ -70,7 +70,7 @@ include("op_chain.jl")
 # two specific VecchiaFactors
 # ===========================================
 include("mi_ri.jl")
-include("pivot_type.jl") # TODO: standardize this as a Vecchia factor
+include("pivot_type.jl") 
 
 # constructing sparse or matrix equivalents
 # ===========================================
@@ -82,6 +82,5 @@ include("vecchia_approx.jl")
 
 # ===========================================
 include("util.jl")
-
 
 end
