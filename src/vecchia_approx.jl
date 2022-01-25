@@ -31,6 +31,21 @@ function vecchia_chol end
 
 
 """
+Sqrt of Vecchia Factorization approximation:
+```
+vecchia_chol(Σ, blk_sizes) -> R⁻¹ sqrt(M)
+```
+Pivoted Cholesky of Vecchia Factorization approximation:
+```
+vecchia_chol(Σ, blk_sizes, perm) -> Pᵀ R⁻¹ sqrt(M) P
+```
+where the argument where `Σ` is an `AbstractMatrix` or a `Function` taking indices `(i,j)` and 
+returning `Σ[i,j]`.
+"""
+function vecchia_sqrt end 
+
+
+"""
 Construct individual factors in the Pivoted Vecchia approximation `Pᵀ R⁻¹ M R⁻ᴴ P`.
 ```
 R_M_P(Σ, blk_sizes, perm) -> R, M, P
@@ -61,13 +76,11 @@ function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{
 	return inv(R) * M * inv(R)'
 end
 
-
 function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes, perm)
     preM′ = map(Md -> cholesky(Md).L, M.data)
     P' * inv(R) * Midiagonal(preM′) * P
 end
-
 
 function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes)
@@ -75,6 +88,17 @@ function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVe
     inv(R) * Midiagonal(preM′)
 end
 
+function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
+    R, M, P = R_M_P(Σ, blk_sizes, perm)
+    preM′ = map(sqrt, M.data)
+    P' * inv(R) * Midiagonal(preM′) * P
+end
+
+function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
+    R, M, P = R_M_P(Σ, blk_sizes)
+    preM′ = map(sqrt, M.data)
+    inv(R) * Midiagonal(preM′)
+end
 
 function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes)) where T
 	LinearAlgebra.checksquare(Σ)
@@ -82,16 +106,16 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
 
 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
 	N = length(blk_sizes)
-	M = Vector{Matrix{T}}(undef, N)
+	M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
 	for ic in 1:N # loops over the column block index
 		if ic == 1
-			M[ic] = Σ[blk_indices[ic], blk_indices[ic]]
+			M[ic] = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]])
 		else 
-			U 		= cholesky(Σ[blk_indices[ic-1], blk_indices[ic-1]]).U 
+			U 		= cholesky(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]])).U 
 			C 		= Σ[blk_indices[ic], blk_indices[ic-1]] / U
 			R[ic-1] = - C / U'
-			M[ic]   = Σ[blk_indices[ic], blk_indices[ic]] - C*C'
+			M[ic]   = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]] - C*C')
 		end
 	end
 
@@ -103,17 +127,17 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 
 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
 	N = length(blk_sizes)
-	T = typeof(Σfun(1,1)) # This seems brittle. To do it right, check how `map` does it
-	M = Vector{Matrix{T}}(undef, N)
+	T = typeof(Σfun(1,2)) # This seems brittle. To do it right, check how `map` does it
+	M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
 	for ic in 1:N # loops over the column block index
 		if ic == 1
-			M[ic] = Σfun.(blk_indices[ic], blk_indices[ic]')
+			M[ic] = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]'))
 		else 
-			U 		= cholesky(Σfun.(blk_indices[ic-1], blk_indices[ic-1]')).U 
+			U 		= cholesky(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]'))).U 
 			C 		= Σfun.(blk_indices[ic], blk_indices[ic-1]') / U
 			R[ic-1] = - C / U'
-			M[ic]   = Σfun.(blk_indices[ic], blk_indices[ic]') - C*C'
+			M[ic]   = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]') - C*C')
 		end
 	end
 
@@ -121,6 +145,11 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 end
 
 
+Sym_or_Hrm(A::AbstractMatrix{<:Real})    = Symmetric(A)
+Sym_or_Hrm(A::AbstractMatrix{<:Complex}) = Hermitian(A)
+
+Typ_Sym_or_Hrm(::Type{T}) where {T<:Real}     = Symmetric{T, Matrix{T}}
+Typ_Sym_or_Hrm(::Type{T}) where {T<:Complex}  = Hermitian{T, Matrix{T}}
 
 
 
