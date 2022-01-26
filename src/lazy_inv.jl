@@ -24,3 +24,4 @@ size(A::Inv)    = reverse(size(A.parent))
 function show(io::IO, ::MIME"text/plain", A::Inv)
     print(io, typeof(A), "\n", A.parent)
 end
+

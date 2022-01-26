@@ -5,11 +5,10 @@
 # `*` concatinates chains
 # ------------------------------------
 
-function *(O1::A, O2::InvOrAdjOrVecc) where A<:InvOrAdjOrVecc 
+# Note: the following argument types are unionall...allowing bipass for custom merge
+function *(O1::InvOrAdjOrVecc, O2::InvOrAdjOrVecc) # testing
     tuple(O1, O2)
 end
-# the second argument type below is unionall 
-# ... this allows you to bipass for a specific InvOrAdjOrVecc
 
 function *(O1::NTuple{N,InvOrAdjOrVecc}, O2::InvOrAdjOrVecc) where N 
     Base.front(O1) * (Base.last(O1) * O2)
@@ -20,7 +19,16 @@ function *(O1::InvOrAdjOrVecc, O2::NTuple{N,InvOrAdjOrVecc}) where N
 end
 
 function *(O1::NTuple{N,InvOrAdjOrVecc}, O2::NTuple{M,InvOrAdjOrVecc}) where {N,M}
-    tuple(O1..., O2...)
+    ## tuple(O1..., O2...) ## old version, slated for removal
+    
+    # Pull out the meeting endpoints to give them a chance to merge
+    # Base.front(O1) * (Base.last(O1) * Base.first(O2)) * Base.tail(O2)
+    Omid = Base.last(O1) * Base.first(O2) 
+    if Omid isa Tuple
+        return tuple(Base.front(O1)..., Omid..., Base.tail(O2)...)
+    else
+        return tuple(Base.front(O1)..., Omid, Base.tail(O2)...)
+    end
 end
 
 # `inv` broadcasts and reverses order
