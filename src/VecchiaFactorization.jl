@@ -12,7 +12,7 @@ import SparseArrays: sparse
 using ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
 				   # but for small matrices this doesn't appear to help
 
-using BlockArrays: PseudoBlockArray,  Block, 
+using BlockArrays: PseudoBlockArray,  Block, BlockArray, undef_blocks,
 blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
 
 export Ridiagonal, Midiagonal, Inv, Piv, sparse
@@ -79,6 +79,10 @@ include("sparse_matrix_show.jl")
 # constructor Vecchia factorization
 # ===========================================
 include("vecchia_approx.jl")
+
+# instantiating/construting the tridiagonal inverse
+# ===========================================
+include("vecchia_inv_access.jl")
 
 # ===========================================
 include("util.jl")

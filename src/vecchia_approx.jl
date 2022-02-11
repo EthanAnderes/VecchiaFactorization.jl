@@ -113,6 +113,7 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
 			M[ic] = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]])
 		else 
 			U 		= cholesky(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]])).U 
+			## U 		= sqrt(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]]))
 			C 		= Σ[blk_indices[ic], blk_indices[ic-1]] / U
 			R[ic-1] = - C / U'
 			M[ic]   = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]] - C*C')
@@ -135,6 +136,7 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 			M[ic] = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]'))
 		else 
 			U 		= cholesky(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]'))).U 
+			## U 		= sqrt(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]')))
 			C 		= Σfun.(blk_indices[ic], blk_indices[ic-1]') / U
 			R[ic-1] = - C / U'
 			M[ic]   = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]') - C*C')

@@ -1,4 +1,7 @@
 
+# `sparse` and `Matrix` for tuples of Vecchia terms
+# =================================================
+
 function sparse(X::NTuple{N,InvOrAdjOrVecc}) where {N}
     # only works if there are sparse methods for each Vecchia Factor in X
 	foldr(*, map(sparse, X)) 
@@ -9,7 +12,7 @@ function Matrix(X::NTuple{N,InvOrAdjOrVecc}) where {N}
 end
 
 
-# sparse, Matrix and show for Ridiagonal
+# `sparse`, `Matrix` and `show` for Ridiagonal
 # =================================================
 
 # ## sparse
@@ -36,10 +39,16 @@ end
 # sparse(inv_adj_R::Inv{<:Any,<:Adjoint{<:Any,<:Ridiagonal}})
 
 # ## Matrix
-Matrix(R::Ridiagonal) = Matrix(sparse(R))
+function Matrix(R::Ridiagonal{T}) where {T} 
+    n           = size(R,1)
+    block_sizes = block_size(R,1)
+    return mortar(
+        Bidiagonal(map(x->zeros(T,x,x) + I,block_sizes), R.data, :L)
+    )
+end
 
 function Matrix(adjR::Adjoint{<:Any,<:Ridiagonal})
-	Matrix(adjoint(sparse(adjR.parent)))
+	adjoint(Matrix(adjR.parent))
 end 
 
 function Matrix(invR::Inv{<:Any,<:Ridiagonal})
@@ -72,7 +81,7 @@ end
 
 
 
-# sparse, matrix and show for Midiagonal
+# `sparse`, `Matrix` and `show` for Midiagonal
 # =================================================
 
 # ## Sparse
@@ -87,28 +96,28 @@ function sparse(invM::Inv{<:Any,<:Midiagonal})
 end
 
 function sparse(inv_adj_R::Inv{<:Any,<:Adjoint{<:Any,<:Midiagonal}})
-	sparse(Midiagonal(map(x->inv(x'),invM.parent)))
+	sparse(Midiagonal(map(x->inv(x'),inv_adj_R.parent.parent)))
 end
 
 
 # ## Matrix
-Matrix(M::Midiagonal) = Matrix(sparse(M))
+Matrix(M::Midiagonal) = mortar(Diagonal(M.data))
 
-Matrix(M::Adjoint{<:Any,<:Midiagonal}) = Matrix(sparse(M))
+Matrix(M::Adjoint{<:Any,<:Midiagonal}) = adjoint(Matrix(M.parent))
 
-Matrix(M::Inv{<:Any,<:Adjoint{<:Any,<:Midiagonal}}) = Matrix(sparse(M))
+Matrix(M::Inv{<:Any,<:Adjoint{<:Any,<:Midiagonal}}) = inv(adjoint(Matrix(M.parent.parent)))
 
 # ## show
 
 function Base.show(io::IO, m::MIME"text/plain", M::Midiagonal)
     println(io, "Midiagonal:")
-    X        = sparse(M)
+    X        = Matrix(M)
     io       = IOContext(io, :typeinfo => eltype(X))
     recur_io = IOContext(io, :SHOWN_SET => X)
     Base.print_array(recur_io, X)
 end
 
-# sparse, matrix and show for Piv
+# `sparse`, `Matrix` and `show` for Piv
 # =================================================
 
 function sparse(p::Piv)
