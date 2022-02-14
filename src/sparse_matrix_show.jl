@@ -139,5 +139,12 @@ function Base.show(io::IO, m::MIME"text/plain", p::Piv)
 end
 
 
+# generic show for inverse and adjoint
+# =================================
+
+function show(io::IO, ::MIME"text/plain", A::InvOrAdj_VF)
+    print(io, typeof(A), "\n", A.parent)
+end
+
 
 

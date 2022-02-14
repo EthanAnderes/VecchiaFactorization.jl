@@ -28,43 +28,31 @@ abstract type VecchiaFactor{T} end
 # ===========================================
 include("adj_inv.jl")
 
-
-## parent(A::InvOrAdj_VF)  = A.parent
-
-size(A::InvOrAdj_VF)    = reverse(size(A.parent))
-
-function show(io::IO, ::MIME"text/plain", A::InvOrAdj_VF)
-    print(io, typeof(A), "\n", A.parent)
-end
-
-pinv(A::InvOrAdjOrVecc_VF)       = inv(A)
-
-
-# for operating on vectors the base methods are these (define them for each new type)
+# Interface: define each one of these for each new VecchiaFactorization type
 # mul!(w, ::VecchiaFactor, v)
 # mul!(w, ::Adj_VF, v)
 # ldiv!(w, ::VecchiaFactor, v)
 # ldiv!(w, ::Adj_VF, v)
 
 # * calls out to mul! and ldiv!
-*(VF::A,   w::AbstractVector) where {A<:VecchiaFactor} = mul!(copy(w), VF, w)
-*(VFᴴ::A,  w::AbstractVector) where {A<:Adj_VF}        = mul!(copy(w), VFᴴ, w)
-*(iVF::A,  w::AbstractVector) where {A<:Inv_VF}        = ldiv!(iVF.parent, copy(w))
-*(iVFᴴ::A, w::AbstractVector) where {A<:Inv_Adj_VF}    = ldiv!(iVFᴴ.parent, copy(w))
+*(VF::VecchiaFactor, w::AbstractVector) = mul!(copy(w), VF, w)
+*(VFᴴ::Adj_VF,       w::AbstractVector) = mul!(copy(w), VFᴴ, w)
+*(iVF::Inv_VF,       w::AbstractVector) = ldiv!(iVF.parent, copy(w))
+*(iVFᴴ::Inv_Adj_VF,  w::AbstractVector) = ldiv!(iVFᴴ.parent, copy(w))
 
 # \ calls out to inv * ...
-\(VF::A,   w::AbstractVector) where {A<:VecchiaFactor} = inv(VF) * w
-\(VFᴴ::A,  w::AbstractVector) where {A<:Adj_VF}        = inv(VFᴴ) * w
-\(iVF::A,  w::AbstractVector) where {A<:Inv_VF}        = inv(iVF) * w
-\(iVFᴴ::A, w::AbstractVector) where {A<:Inv_Adj_VF}    = inv(iVFᴴ) * w
+\(VF::VecchiaFactor, w::AbstractVector) = inv(VF) * w
+\(VFᴴ::Adj_VF,       w::AbstractVector) = inv(VFᴴ) * w
+\(iVF::Inv_VF,       w::AbstractVector) = inv(iVF) * w
+\(iVFᴴ::Inv_Adj_VF,  w::AbstractVector) = inv(iVFᴴ) * w
+
+# Can we put this someplace else??
+size(A::InvOrAdj_VF)       = reverse(size(A.parent))
+pinv(A::InvOrAdjOrVecc_VF) = inv(A)
 
 # Chain products by creating a tuple
 # ===========================================
 include("op_chain.jl")
-
-# these are operations on vectors ... op_chain operates on other operators
-\(A::Adj, v::AbstractVector) = inv(A) * v
-\(A::Inv, v::AbstractVector) = A.parent * v
 
 # two specific VecchiaFactors
 # ===========================================
