@@ -1,6 +1,6 @@
 module VecchiaFactorization
 
-import Base: size, getindex, permute!, invpermute!, parent, show, rand, randn
+import Base: size, getindex, permute!, invpermute!, show, rand, randn
 
 using LinearAlgebra # BLAS.set_num_threads(1)
 import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, 
@@ -20,56 +20,56 @@ export Ridiagonal, Midiagonal, Inv, Piv, sparse
 # VecchiaFactor{T}
 # ===========================================
 
-abstract type VecchiaFactor{T} <: AbstractMatrix{T} end
+## abstract type VecchiaFactor{T} <: AbstractMatrix{T} end
+## abstract type VecchiaFactor{T} <: Factorization{T} end
+abstract type VecchiaFactor{T} end
 
-# Inv which compliments Adjoint
+# Inv and Adj
 # ===========================================
-include("lazy_inv.jl")
+include("adj_inv.jl")
 
-const Adj_VecchiaFactor{T}     = Adjoint{T,<:VecchiaFactor}
-const Inv_VecchiaFactor{T}     = Inv{T,<:VecchiaFactor}
-const Inv_Adj_VecchiaFactor{T} = Inv{T,<:Adj_VecchiaFactor}
-const InvOrAdjOrVecc = Union{VecchiaFactor, Adj_VecchiaFactor, Inv_VecchiaFactor, Inv_Adj_VecchiaFactor}
 
-# inv creates Inv generically (you can bypass these)
-inv(A::VecchiaFactor)         = Inv(A)    # -> Inv_VecchiaFactor
-inv(A::Inv_VecchiaFactor)     = A.parent  # -> VecchiaFactor
-inv(A::Adj_VecchiaFactor)     = Inv(A)    # -> Inv_Adj_VecchiaFactor
-inv(A::Inv_Adj_VecchiaFactor) = A.parent  # -> Adj_VecchiaFactor
-pinv(A::InvOrAdjOrVecc)       = inv(A)
+## parent(A::InvOrAdj_VF)  = A.parent
 
-# adjoint automatically creats an Adjoint (you can bypass these)
-# adjoint(A::VecchiaFactor)     # automatic -> Adj_VecchiaFactor
-adjoint(A::Inv_VecchiaFactor)     = Inv(adjoint(A.parent))  # -> Inv_Adj_VecchiaFactor
-adjoint(A::Adj_VecchiaFactor)     = A.parent               # -> VecchiaFactor
-adjoint(A::Inv_Adj_VecchiaFactor) = Inv(adjoint(A.parent)) # -> Inv_VecchiaFactor
+size(A::InvOrAdj_VF)    = reverse(size(A.parent))
+
+function show(io::IO, ::MIME"text/plain", A::InvOrAdj_VF)
+    print(io, typeof(A), "\n", A.parent)
+end
+
+pinv(A::InvOrAdjOrVecc_VF)       = inv(A)
+
 
 # for operating on vectors the base methods are these (define them for each new type)
 # mul!(w, ::VecchiaFactor, v)
-# mul!(w, ::Adj_VecchiaFactor, v)
+# mul!(w, ::Adj_VF, v)
 # ldiv!(w, ::VecchiaFactor, v)
-# ldiv!(w, ::Adj_VecchiaFactor, v)
+# ldiv!(w, ::Adj_VF, v)
 
 # * calls out to mul! and ldiv!
-*(VF::A,   w::AbstractVector) where {A<:VecchiaFactor}         = mul!(copy(w), VF, w)
-*(VFᴴ::A,  w::AbstractVector) where {A<:Adj_VecchiaFactor}     = mul!(copy(w), VFᴴ, w)
-*(iVF::A,  w::AbstractVector) where {A<:Inv_VecchiaFactor}     = ldiv!(iVF.parent, copy(w))
-*(iVFᴴ::A, w::AbstractVector) where {A<:Inv_Adj_VecchiaFactor} = ldiv!(iVFᴴ.parent, copy(w))
+*(VF::A,   w::AbstractVector) where {A<:VecchiaFactor} = mul!(copy(w), VF, w)
+*(VFᴴ::A,  w::AbstractVector) where {A<:Adj_VF}        = mul!(copy(w), VFᴴ, w)
+*(iVF::A,  w::AbstractVector) where {A<:Inv_VF}        = ldiv!(iVF.parent, copy(w))
+*(iVFᴴ::A, w::AbstractVector) where {A<:Inv_Adj_VF}    = ldiv!(iVFᴴ.parent, copy(w))
 
 # \ calls out to inv * ...
-\(VF::A,   w::AbstractVector) where {A<:VecchiaFactor}         = inv(VF) * w
-\(VFᴴ::A,  w::AbstractVector) where {A<:Adj_VecchiaFactor}     = inv(VFᴴ) * w
-\(iVF::A,  w::AbstractVector) where {A<:Inv_VecchiaFactor}     = inv(iVF) * w
-\(iVFᴴ::A, w::AbstractVector) where {A<:Inv_Adj_VecchiaFactor} = inv(iVFᴴ) * w
-
+\(VF::A,   w::AbstractVector) where {A<:VecchiaFactor} = inv(VF) * w
+\(VFᴴ::A,  w::AbstractVector) where {A<:Adj_VF}        = inv(VFᴴ) * w
+\(iVF::A,  w::AbstractVector) where {A<:Inv_VF}        = inv(iVF) * w
+\(iVFᴴ::A, w::AbstractVector) where {A<:Inv_Adj_VF}    = inv(iVFᴴ) * w
 
 # Chain products by creating a tuple
 # ===========================================
 include("op_chain.jl")
 
+# these are operations on vectors ... op_chain operates on other operators
+\(A::Adj, v::AbstractVector) = inv(A) * v
+\(A::Inv, v::AbstractVector) = A.parent * v
+
 # two specific VecchiaFactors
 # ===========================================
 include("mi_ri.jl")
+
 include("pivot_type.jl") 
 
 # constructing sparse or matrix equivalents

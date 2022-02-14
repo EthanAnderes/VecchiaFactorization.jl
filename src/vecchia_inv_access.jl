@@ -17,7 +17,6 @@ function vecchia_add_inv(R̄::Ridiagonal{T}, M̄::Midiagonal{T}, R̃::Ridiagonal
     blk_sizes = block_size(M̄,1)
     @assert blk_sizes == block_size(M̃,1)
     N = length(blk_sizes)
-    blk_indices = blocks(PseudoBlockArray(1:sum(blk_sizes), blk_sizes))
     
     Mdata⁻¹ = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
     Rdata   = Vector{Matrix{T}}(undef, N-1)
@@ -39,6 +38,30 @@ function vecchia_add_inv(R̄::Ridiagonal{T}, M̄::Midiagonal{T}, R̃::Ridiagonal
 
     return Ridiagonal(Rdata), Midiagonal(Mdata), Midiagonal(Mdata⁻¹)
 end
+
+# blocks of lower diag == LB, diagonal blocks == DB
+## needs testing
+function vecchia_from_inv(Σ⁻¹LB::Vector{TL}, Σ⁻¹DB::Vector{TM}) where {T, TL<:AbstractMatrix{T}, TM<:AbstractMatrix{T}} 
+
+    blk_sizes = block_size(Midiagonal(Σ⁻¹DB),1)
+    @assert blk_sizes == block_size(Ridiagonal(Σ⁻¹LB),1)
+    N = length(Σ⁻¹DB)
+    
+    Mdata⁻¹ = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
+    Rdata   = Vector{Matrix{T}}(undef, N-1)
+    
+    Mdata⁻¹[N] = Sym_or_Hrm(Σ⁻¹DB[N])
+
+    for i=N-1:-1:1
+        Rdata[i]   = Mdata⁻¹[i+1] \ Σ⁻¹LB[i]
+        Mdata⁻¹[i] = Sym_or_Hrm(Σ⁻¹DB[i] -  Rdata[i]'*Σ⁻¹LB[i])
+    end
+
+    Mdata = map(x->Sym_or_Hrm(inv(cholesky(x))), Mdata⁻¹)
+
+    return Ridiagonal(Rdata), Midiagonal(Mdata), Midiagonal(Mdata⁻¹)
+end
+
 
 
 

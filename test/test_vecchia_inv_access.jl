@@ -33,4 +33,21 @@ using LBblocks
     Č⁻¹ = Matrix(R' * M⁻¹ * R)
     @test Č⁻¹ ≈ Ǎ⁻¹ + B̌⁻¹ 
 
+
+    T1 = Diagonal(rand(n))
+    T2 = rand(n,n)
+    T3 = cholesky(T2 * T2').L
+    v = rand(n) 
+    
+    @test (R * M * T1) * v ≈ (R * M) * (T1 * v) 
+    @test (R * M * T2) * v ≈ (R * M) * (T2 * v) 
+    @test (R * M * T3) * v ≈ (R * M) * (T3 * v)
+
+    @test (T1 * R * M) * v ≈ T1 * (R * M * v) 
+    @test (T2 * R * M) * v ≈ T2 * (R * M * v) 
+
+    @test (inv(R') * M * T2) * v ≈ (inv(R') * M) * (T2 * v) 
+    @test (T2 * inv(R') * M) * v ≈ T2 * (inv(R') * M * v)
+
+
 end

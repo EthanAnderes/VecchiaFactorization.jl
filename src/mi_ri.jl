@@ -43,8 +43,8 @@ function ldiv!(M::A, w::AbstractVector)  where {A<:Midiagonal}
 end
 
 # inv(M') * w
-function ldiv!(Mᴴ::A, w::AbstractVector) where {A<:Adjoint{<:Any,<:Midiagonal}}
-    M = parent(Mᴴ)
+function ldiv!(Mᴴ::A, w::AbstractVector) where {A<:Adj{<:Any,<:Midiagonal}}
+    M = Mᴴ.parent
     rwB, wB = block_array(M, rw, w)
     for i = 1:length(wB)
         copyto!(rwB[i], M.data[i]' \ wB[i])
@@ -62,8 +62,8 @@ function ldiv!(R::Ridiagonal, w::AbstractVector{T}) where T
 end
 
 # inv(R)' * w ≡ (Rₙ'Rₙ₋₁' ⋯ R₂')⁻¹ * w
-function ldiv!(Rᴴ::Adjoint{<:Any,<:Ridiagonal}, w::AbstractVector{T}) where T
-    R   = parent(Rᴴ)
+function ldiv!(Rᴴ::Adj{<:Any,<:Ridiagonal}, w::AbstractVector{T}) where T
+    R   = Rᴴ.parent
     wbB = block_array(R, w)
     for i in length(wbB)-1:-1:1
         mul!(wbB[i], R.data[i]', wbB[i+1], -1, true)     
@@ -85,8 +85,8 @@ function lmul!(R::Ridiagonal, w::AbstractVector{T}) where T
 end
 
 # R' * w ≡ (Rₙ'Rₙ₋₁' ⋯ R₂')*w
-function lmul!(Rᴴ::Adjoint{<:Any, <:Ridiagonal}, w::AbstractVector{T}) where T
-    R   = parent(Rᴴ)
+function lmul!(Rᴴ::Adj{<:Any, <:Ridiagonal}, w::AbstractVector{T}) where T
+    R   = Rᴴ.parent
     wbB = block_array(R, w)
     for i in 1:length(wbB)-1
         mul!(wbB[i], R.data[i]', wbB[i+1], true, true)       
@@ -98,12 +98,12 @@ end
 # 3 and 5 arg mul! 
 # ---------------------------------
 
-function mul!(rw::AbstractVector, R::A, w::AbstractVector) where {A<:Union{Ridiagonal, Adjoint{<:Any,<:Ridiagonal}}}
+function mul!(rw::AbstractVector, R::A, w::AbstractVector) where {A<:Union{Ridiagonal, Adj{<:Any,<:Ridiagonal}}}
     copyto!(rw,w)
     lmul!(R, rw)
 end
 
-function mul!(rw::AbstractVector, M::A, w::AbstractVector) where {A<:Union{Midiagonal, Adjoint{<:Any,<:Midiagonal}}}
+function mul!(rw::AbstractVector, M::A, w::AbstractVector) where {A<:Union{Midiagonal, Adj{<:Any,<:Midiagonal}}}
     mul!(rw, M, w, true, false)
 end
 
@@ -115,8 +115,8 @@ function mul!(rw::AbstractVector, M::A, w::AbstractVector, α::Number, β::Numbe
     return rw
 end
 
-function mul!(rw::AbstractVector, Mᴴ::A, w::AbstractVector, α::Number, β::Number) where {A<:Adjoint{<:Any,<:Midiagonal}}
-    M = parent(Mᴴ)
+function mul!(rw::AbstractVector, Mᴴ::A, w::AbstractVector, α::Number, β::Number) where {A<:Adj{<:Any,<:Midiagonal}}
+    M = Mᴴ.parent
     rwB, wB = block_array(M, rw, w)
     for i = 1:length(wB)
         mul!(rwB[i], M.data[i]', wB[i], α, β)

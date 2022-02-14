@@ -45,12 +45,12 @@ invpermute!(v::AbstractVector, p::Piv) = invpermute!(v, p.perm)
 # /(p::Piv, m::AbstractMatrix) = p * pinv(m)
 # /(m::AbstractMatrix, p::Piv) = m * pinv(p)
 
-# *(p::Piv, m::Adjoint{<:Any, <:AbstractMatrix}) = adjoint(m.parent * adjoint(p))
-# *(m::Adjoint{<:Any, <:AbstractMatrix}, p::Piv) = adjoint(adjoint(p) * m.parent)
-# \(p::Piv, m::Adjoint{<:Any, <:AbstractMatrix}) = pinv(p) * m
-# \(m::Adjoint{<:Any, <:AbstractMatrix}, p::Piv) = pinv(m) * p
-# /(p::Piv, m::Adjoint{<:Any, <:AbstractMatrix}) = p * pinv(m)
-# /(m::Adjoint{<:Any, <:AbstractMatrix}, p::Piv) = m * pinv(p)
+# *(p::Piv, m::Adj{<:Any, <:AbstractMatrix}) = adjoint(m.parent * adjoint(p))
+# *(m::Adj{<:Any, <:AbstractMatrix}, p::Piv) = adjoint(adjoint(p) * m.parent)
+# \(p::Piv, m::Adj{<:Any, <:AbstractMatrix}) = pinv(p) * m
+# \(m::Adj{<:Any, <:AbstractMatrix}, p::Piv) = pinv(m) * p
+# /(p::Piv, m::Adj{<:Any, <:AbstractMatrix}) = p * pinv(m)
+# /(m::Adj{<:Any, <:AbstractMatrix}, p::Piv) = m * pinv(p)
 
 
 function getindex(p::Piv, i::Integer, j::Integer) 
