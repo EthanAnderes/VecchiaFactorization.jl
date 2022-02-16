@@ -64,10 +64,45 @@ end
 
 
 
+"""
+`instantiate_inv!(X::Matrix, R::Ridiagonal, M::Midiagonal, P::Piv)`
+modifies X to hold the inverse of the corresponding pivoted 
+Vecchia approximation. It also returns X wrapped as a PseudoBlockArray
+"""
+function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
+    blk_sizes = block_size(R,1)
+    @assert blk_sizes == block_size(M,1)
+    N = length(blk_sizes)
+
+    fill!(X, T(0))
+    Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
+
+    L⁻¹M_ic          = inv(cholesky(M.data[N]).L)
+    Σ⁻¹[Block(N,N)] .= L⁻¹M_ic'*L⁻¹M_ic
+    for ic in N-1:-1:1
+        L⁻¹M_ic₊1 = L⁻¹M_ic # since we move backwards
+        L⁻¹M_ic   = inv(cholesky(M.data[ic]).L)
+        C         = L⁻¹M_ic₊1 * R.data[ic]
+        Σ⁻¹[Block(ic+1,ic)]  .= L⁻¹M_ic₊1' * C
+        Σ⁻¹[Block(ic,ic)]    .= L⁻¹M_ic'*L⁻¹M_ic + C'*C
+        Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
+    end
+
+    for col in eachcol(X)
+        permute!(col, P.perm)
+    end
+    for rw in eachrow(X)
+        permute!(rw, P.perm)
+    end
+
+    return X
+end
 
 
-# Methods for instantiating the (non Pivoted) tridiagonal inverse of a Vecchia approximation
-
+"""
+`instantiate_inv(R::Ridiagonal, M::Midiagonal)` returns a block tridiagonal array (non-Pivoted) which is the
+tridiagonal inverse of the corresponding Vecchia approximation.
+"""
 function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
     blk_sizes = block_size(R,1)
     @assert blk_sizes == block_size(M,1)

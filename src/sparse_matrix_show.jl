@@ -43,7 +43,7 @@ function Matrix(R::Ridiagonal{T}) where {T}
     n           = size(R,1)
     block_sizes = block_size(R,1)
     return mortar(
-        Bidiagonal(map(x->zeros(T,x,x) + I,block_sizes), R.data, :L)
+        Bidiagonal(map(x->zeros(T,x,x) + I, block_sizes), R.data, :L)
     )
 end
 

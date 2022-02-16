@@ -1,11 +1,38 @@
 using LinearAlgebra
 using VecchiaFactorization
 import VecchiaFactorization as VF
-using BlockArrays
+## using BlockArrays
 using Test
 using LBblocks
 
-@testset "vecchia_inv_access.jl" begin 
+
+## @testset "vecchia_inv_access.jl: instantiate_inv! and instantiate_inv" begin 
+
+    n = 320 
+
+    A = @sblock let θtru = 1.5, n
+        K = (x,y,θtru) -> exp(- θtru * abs(x - y) ^ 0.8 )
+        x = range(0,4,n)
+        K.(x, x', θtru)
+    end
+
+    block_sizes = [100, 150, 20, 50]
+    perm = vcat(1:n÷2, n:-1:n÷2+1)
+    R, M, P = VF.R_M_P(A, block_sizes, perm)
+
+    X = similar(A)
+    VF.instantiate_inv!(X, R, M, P)
+
+    VF.instantiate_inv(R, M)[P.perm, P.perm]
+
+    Avecc = Matrix(P' * Matrix(inv(R) * M * inv(R')) * P)
+    inv(X)
+
+## end
+
+
+
+@testset "vecchia_inv_access.jl: vecchia_add_inv" begin 
 
     n = 320 
 
@@ -51,3 +78,5 @@ using LBblocks
 
 
 end
+
+

@@ -32,7 +32,6 @@ function mortar_Bidiagonal_fill(c::T, blk_sizes) where T<:Number
     mortar(Bidiagonal(M0,M⁻1,:L))
 end 
 
-
 function mortar_Tridiagonal_fill(c::T, blk_sizes) where T<:Number
     N = length(blk_sizes)
     M0 = Matrix{T}[fill(c, blk_sizes[ic], blk_sizes[ic]) for ic=1:N]
@@ -40,7 +39,6 @@ function mortar_Tridiagonal_fill(c::T, blk_sizes) where T<:Number
     M⁺1 = Matrix{T}[fill(c, blk_sizes[ic], blk_sizes[ic+1]) for ic=1:N-1]
     mortar(Tridiagonal(M⁻1, M0, M⁺1))
 end 
-
 
 function initalize_bidiag_lblks(::Type{T}, blk_sizes) where T
     N = length(blk_sizes)
