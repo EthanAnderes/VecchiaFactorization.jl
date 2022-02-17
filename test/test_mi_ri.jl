@@ -15,8 +15,8 @@ using LBblocks
         @test VF.sizes_from_blocksides(Ridiagonal, bs) == [(4,2), (3,4)]
         @test VF.sizes_from_blocksides(Midiagonal, bs) == [(2,2), (4,4), (3,3)]
         
-        Ri = rand(Ridiagonal{Float64}, bs)
-        Mi = rand(Midiagonal{Float64}, bs)
+        Ri = randn(Ridiagonal{Float64}, bs)
+        Mi = randn(Midiagonal{Float64}, bs)
 
         @test Ri isa Ridiagonal
         @test Mi isa Midiagonal
@@ -62,7 +62,7 @@ using LBblocks
         ## -----
         ## v = rand(Float64, sum(bs))
         ## -----
-        v1 = Ri \ Ri * v
+        v1 = Ri \ (Ri * v)
         w1 = Ri * (Ri \ v)
         @test v ≈ v1 rtol=1e-5
         @test v ≈ w1 rtol=1e-5
@@ -72,15 +72,21 @@ using LBblocks
     #=
     using BenchmarkTools
 
-    bs = fill(50,20)        
-    Ri = randn(Ridiagonal{Float64}, bs)
-    Mi = randn(Midiagonal{Float64}, bs)
-    v  = randn(size(Ri,1))
-    w  = randn(size(Ri,1))
-    M = randn(size(Ri,1), size(Ri,1))
+    bs = fill(50,20)
+    T  = ComplexF64        
+    Ri = randn(Ridiagonal{T}, bs)
+    Mi = randn(Midiagonal{T}, bs)
+    Mi′ = map(Hermitian, Mi.data) |> Midiagonal
+
+    t = ComplexF64
+    v  = randn(t, size(Ri,1))
+    w  = randn(t, size(Ri,1))
+    M = randn(t, size(Ri,1), size(Ri,1))
     @benchmark mul!(w, Mi, v, true, false)  # 9 μs
     @benchmark Mi * v  # 9 μs
     @benchmark Ri * v  # 9 μs
+    @benchmark mul!(w, Mi′, v, true, false)  # 9 μs
+    @benchmark Mi′ * v  # 9 μs
 
     @benchmark Mi' * v # 9 μs
     @benchmark Ri' * v # 9 μs

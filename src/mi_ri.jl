@@ -23,7 +23,7 @@ const MiRi{T,M}    = Union{Midiagonal{T,M}, Ridiagonal{T,M}}
 # ===================================
 
 # bypass adjoint and inv
-inv(M::Midiagonal)      = Midiagonal(map(inv, M.data)) 
+inv(M::Midiagonal)      = Midiagonal(map(x->inv(cholesky(Sym_or_Hrm(x))), M.data)) 
 adjoint(M::Midiagonal)  = Midiagonal(map(adjoint, M.data)) 
 
 # merge products of Midiagonals
@@ -207,11 +207,35 @@ end
 # Convienence (not sure if we want these ?)
 # =================================================
 
-rand(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
-rand(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+function randn(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} 
+    M = map(sizes_from_blocksides(A, bs)) do sz
+        X = rand(T,sz)
+        X * X'
+    end
+    Midiagonal(M)
+end
 
-randn(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} = Midiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
-randn(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} = Ridiagonal(map(sz -> rand(T,sz), sizes_from_blocksides(A, bs)))    
+function randn(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} 
+    R = map(sizes_from_blocksides(A, bs)) do sz
+        rand(T,sz)
+    end
+    Ridiagonal(R)    
+end 
+
+function eye(::Type{A}, bs::Vector{Int}) where {T,A<:Ridiagonal{T}} 
+    R = map(sizes_from_blocksides(A, bs)) do sz
+        zeros(T,sz)
+    end
+    Ridiagonal(R)    
+end 
+
+function eye(::Type{A}, bs::Vector{Int}) where {T,A<:Midiagonal{T}} 
+    Midiagonal = map(sizes_from_blocksides(A, bs)) do sz
+        Matrix(T(1)*I(sz[1]))
+    end
+    Midiagonal(R)    
+end 
+
 
 # an alternative to these is to simply overload map to reconsititue a Midiagonal?
 sqrt(M::Midiagonal)      = Midiagonal(map(sqrt, M.data)) 

@@ -78,25 +78,29 @@ end
 
 function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes, perm)
-    preM′ = map(Md -> cholesky(Md).L, M.data)
+    # preM′ = map(Md -> cholesky(Md).L, M.data)
+    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
     P' * inv(R) * Midiagonal(preM′) * P
 end
 
 function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes)
-    preM′ = map(Md -> cholesky(Md).L, M.data)
+    # preM′ = map(Md -> cholesky(Md).L, M.data)
+    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
     inv(R) * Midiagonal(preM′)
 end
 
 function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes, perm)
-    preM′ = map(sqrt, M.data)
+    # preM′ = map(sqrt, M.data)
+    preM′ = map(x->Matrix(sqrt(Sym_or_Hrm(x))), M.data) # add Sym_or_Hrm since we are removing it by default on construction
     P' * inv(R) * Midiagonal(preM′) * P
 end
 
 function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes)
-    preM′ = map(sqrt, M.data)
+    # preM′ = map(sqrt, M.data)
+    preM′ = map(x->Matrix(sqrt(Sym_or_Hrm(x))), M.data) # add Sym_or_Hrm since we are removing it by default on construction
     inv(R) * Midiagonal(preM′)
 end
 
@@ -106,17 +110,20 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
 
 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
 	N = length(blk_sizes)
-	M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
+	# M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
+	M = Vector{Matrix{T}}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
 	for ic in 1:N # loops over the column block index
 		if ic == 1
-			M[ic] = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]])
+			# M[ic] = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]])
+			M[ic] = Σ[blk_indices[ic], blk_indices[ic]] # why does this speed up matrix mult??
 		else 
+			# U 		= sqrt(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]]))
 			U 		= cholesky(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]])).U 
-			## U 		= sqrt(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]]))
 			C 		= Σ[blk_indices[ic], blk_indices[ic-1]] / U
 			R[ic-1] = - C / U'
-			M[ic]   = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]] - C*C')
+			# M[ic]   = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]] - C*C')
+			M[ic] = Σ[blk_indices[ic], blk_indices[ic]] - C*C' # why does this speed up matrix mult??
 		end
 	end
 
@@ -129,17 +136,20 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
 	N = length(blk_sizes)
 	T = typeof(Σfun(1,2)) # This seems brittle. To do it right, check how `map` does it
-	M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
+	# M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
+	M = Vector{Matrix{T}}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
 	for ic in 1:N # loops over the column block index
 		if ic == 1
-			M[ic] = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]'))
+			# M[ic] = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]'))
+			M[ic] = Σfun.(blk_indices[ic], blk_indices[ic]')  # why does this speed up matrix mult??
 		else 
+			# U 		= sqrt(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]')))
 			U 		= cholesky(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]'))).U 
-			## U 		= sqrt(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]')))
 			C 		= Σfun.(blk_indices[ic], blk_indices[ic-1]') / U
 			R[ic-1] = - C / U'
-			M[ic]   = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]') - C*C')
+			# M[ic]   = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]') - C*C')
+			M[ic]   = Σfun.(blk_indices[ic], blk_indices[ic]') - C*C'  # why does this speed up matrix mult??
 		end
 	end
 
