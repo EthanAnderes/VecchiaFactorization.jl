@@ -65,11 +65,13 @@ end
 
 
 """
-`instantiate_inv!(X::Matrix, R::Ridiagonal, M::Midiagonal, P::Piv)`
-modifies X to hold the inverse of the corresponding pivoted 
-Vecchia approximation. It also returns X wrapped as a PseudoBlockArray
+`instantiate_inv!(X::Matrix, R::Ridiagonal, M::Midiagonal)`
+modifies X to hold the inverse of the corresponding
+Vecchia approximation. 
 """
-function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
+function instantiate_inv! end
+
+function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
     blk_sizes = block_size(R,1)
     @assert blk_sizes == block_size(M,1)
     N = length(blk_sizes)
@@ -88,22 +90,33 @@ function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}, P::P
         Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
     end
 
-    for col in eachcol(X)
-        permute!(col, P.perm)
-    end
-    for rw in eachrow(X)
-        permute!(rw, P.perm)
-    end
-
     return X
+end
+
+function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
+    instantiate_inv!(X, R, M)
+    X .= X[P.perm, P.perm]
+    return X
+end
+
+function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
+    n = sum(block_size(R,1))
+    X = Array{T,2}(undef, n, n)
+    return instantiate_inv!(X, R, M)
+end
+
+function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
+    n = sum(block_size(R,1))
+    X = Array{T,2}(undef, n, n)
+    return instantiate_inv!(X, R, M, P)
 end
 
 
 """
-`instantiate_inv(R::Ridiagonal, M::Midiagonal)` returns a block tridiagonal array (non-Pivoted) which is the
+`instantiate_inv_tridiagonal(R::Ridiagonal, M::Midiagonal)` returns a block tridiagonal array (non-Pivoted) which is the
 tridiagonal inverse of the corresponding Vecchia approximation.
 """
-function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
+function instantiate_inv_tridiagonal(R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
     blk_sizes = block_size(R,1)
     @assert blk_sizes == block_size(M,1)
     N = length(blk_sizes)

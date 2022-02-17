@@ -1,14 +1,13 @@
 using LinearAlgebra
 using VecchiaFactorization
 import VecchiaFactorization as VF
-## using BlockArrays
 using Test
 using LBblocks
 
 
-## @testset "vecchia_inv_access.jl: instantiate_inv! and instantiate_inv" begin 
+@testset "vecchia_inv_access.jl: instantiate_inv! and instantiate_inv" begin 
 
-    n = 320 
+    n = 750 
 
     A = @sblock let θtru = 1.5, n
         K = (x,y,θtru) -> exp(- θtru * abs(x - y) ^ 0.8 )
@@ -16,19 +15,38 @@ using LBblocks
         K.(x, x', θtru)
     end
 
-    block_sizes = [100, 150, 20, 50]
+    block_sizes = [200, 250, 200, 100]
     perm = vcat(1:n÷2, n:-1:n÷2+1)
     R, M, P = VF.R_M_P(A, block_sizes, perm)
 
     X = similar(A)
     VF.instantiate_inv!(X, R, M, P)
 
-    VF.instantiate_inv(R, M)[P.perm, P.perm]
+    X′_pre_perm = VF.instantiate_inv_tridiagonal(R, M)
+    X′ = X′_pre_perm[P.perm, P.perm]
 
-    Avecc = Matrix(P' * Matrix(inv(R) * M * inv(R')) * P)
-    inv(X)
+    @test X ≈ X′
 
-## end
+    invA_v = Matrix(P' * R' * inv(M) * R * P)
+    @test invA_v ≈ X
+
+    #=
+    using BenchmarkTools
+    @benchmark VF.instantiate_inv!(X, $R, $M, $P)
+    @benchmark VF.instantiate_inv!(X, $R, $M)
+    @benchmark VF.instantiate_inv_tridiagonal($R, $M)
+
+    @benchmark VF.instantiate_inv!(X, $R, $M, $P)
+    @benchmark Matrix(VF.instantiate_inv_tridiagonal($R, $M))[P.perm, P.perm]
+
+    @benchmark VF.instantiate_inv!(X, $R, $M)
+    @benchmark Matrix(VF.instantiate_inv_tridiagonal($R, $M))
+
+
+
+    =#
+
+end
 
 
 

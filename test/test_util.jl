@@ -11,10 +11,9 @@ using Test
     @test VF.block_split(11, 10) == [10,1]   
 
     blk_sizes = [100, 150, 20, 50]
-    VF.mortar_Bidiagonal_fill(1.0, blk_sizes)
-    VF.initalize_bidiag_lblks(typeof(1.0), blk_sizes)
-
-    VF.mortar_Tridiagonal_fill(1.0, blk_sizes) ## getting error here
+    @inferred VF.mortar_Bidiagonal_fill(1.0, blk_sizes)
+    @inferred VF.initalize_bidiag_lblks(typeof(1.0), blk_sizes)
+    @inferred VF.mortar_Tridiagonal_fill(1.0, blk_sizes) ## getting error here
 
 end
 
