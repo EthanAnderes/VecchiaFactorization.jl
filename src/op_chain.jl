@@ -103,6 +103,10 @@ end
 # `inv` broadcasts and reverses order
 # ------------------------------------
 
+function posdef_inv(O1::NTuple{N,MatrixOrInvOrAdjOrVecc_VF}) where N
+    tuple((posdef_inv(op) for op in reverse(O1))...)
+end
+
 function inv(O1::NTuple{N,MatrixOrInvOrAdjOrVecc_VF}) where N
     tuple((inv(op) for op in reverse(O1))...)
 end

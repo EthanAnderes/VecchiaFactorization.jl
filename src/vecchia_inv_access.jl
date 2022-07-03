@@ -47,17 +47,17 @@ function vecchia_from_inv(Σ⁻¹LB::Vector{TL}, Σ⁻¹DB::Vector{TM}) where {T
     @assert blk_sizes == block_size(Ridiagonal(Σ⁻¹LB),1)
     N = length(Σ⁻¹DB)
     
-    Mdata⁻¹ = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
+    Mdata⁻¹ = Vector{Matrix{T}}(undef, N)
     Rdata   = Vector{Matrix{T}}(undef, N-1)
     
-    Mdata⁻¹[N] = Sym_or_Hrm(Σ⁻¹DB[N])
+    Mdata⁻¹[N] = Matrix(Σ⁻¹DB[N])
 
     for i=N-1:-1:1
         Rdata[i]   = Mdata⁻¹[i+1] \ Σ⁻¹LB[i]
-        Mdata⁻¹[i] = Sym_or_Hrm(Σ⁻¹DB[i] -  Rdata[i]'*Σ⁻¹LB[i])
+        Mdata⁻¹[i] = Σ⁻¹DB[i] -  Rdata[i]'*Σ⁻¹LB[i]
     end
 
-    Mdata = map(x->Sym_or_Hrm(inv(cholesky(x))), Mdata⁻¹)
+    Mdata = map(x->inv(cholesky(Sym_or_Hrm(x))), Mdata⁻¹)
 
     return Ridiagonal(Rdata), Midiagonal(Mdata), Midiagonal(Mdata⁻¹)
 end
@@ -79,11 +79,11 @@ function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) wher
     fill!(X, T(0))
     Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
 
-    L⁻¹M_ic          = inv(cholesky(M.data[N]).L)
+    L⁻¹M_ic          = inv(cholesky(Sym_or_Hrm(M.data[N])).L)
     Σ⁻¹[Block(N,N)] .= L⁻¹M_ic'*L⁻¹M_ic
     for ic in N-1:-1:1
         L⁻¹M_ic₊1 = L⁻¹M_ic # since we move backwards
-        L⁻¹M_ic   = inv(cholesky(M.data[ic]).L)
+        L⁻¹M_ic   = inv(cholesky(Sym_or_Hrm(M.data[ic])).L)
         C         = L⁻¹M_ic₊1 * R.data[ic]
         Σ⁻¹[Block(ic+1,ic)]  .= L⁻¹M_ic₊1' * C
         Σ⁻¹[Block(ic,ic)]    .= L⁻¹M_ic'*L⁻¹M_ic + C'*C
@@ -142,7 +142,7 @@ function instantiate_inv_bidiag_partial(R::Ridiagonal{T}, M::Midiagonal{T}) wher
     blk_sizes = block_size(R,1)
     @assert blk_sizes == block_size(M,1)
     N    = length(blk_sizes)
-    L⁻¹M = map(x->inv(cholesky(x).L), M.data)
+    L⁻¹M = map(x->inv(cholesky(Sym_or_Hrm(x)).L), M.data)
 
     Σ⁻¹ = initalize_bidiag_lblks(T, blk_sizes)
 

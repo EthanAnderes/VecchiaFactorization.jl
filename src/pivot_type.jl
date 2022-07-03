@@ -37,21 +37,15 @@ size(p::Piv, d) = d::Integer <= 2 ? size(p)[d] : 1
 permute!(v::AbstractVector, p::Piv)    = permute!(v, p.perm)
 invpermute!(v::AbstractVector, p::Piv) = invpermute!(v, p.perm)
 
-# these create ambiguities that I don't want to sort out at the moment...
+## if we turn these on then Piv * Diag -> sparse which 
+## which effects the collaps of the op_chain for Beams. 
+## Not sure if we want that.
 # *(p::Piv, m::AbstractMatrix) = m[p.perm,:]
 # *(m::AbstractMatrix, p::Piv) = m[:, invperm(p.perm)]
 # \(p::Piv, m::AbstractMatrix) = pinv(p) * m
 # \(m::AbstractMatrix, p::Piv) = pinv(m) * p
 # /(p::Piv, m::AbstractMatrix) = p * pinv(m)
 # /(m::AbstractMatrix, p::Piv) = m * pinv(p)
-
-# *(p::Piv, m::Adj{<:Any, <:AbstractMatrix}) = adjoint(m.parent * adjoint(p))
-# *(m::Adj{<:Any, <:AbstractMatrix}, p::Piv) = adjoint(adjoint(p) * m.parent)
-# \(p::Piv, m::Adj{<:Any, <:AbstractMatrix}) = pinv(p) * m
-# \(m::Adj{<:Any, <:AbstractMatrix}, p::Piv) = pinv(m) * p
-# /(p::Piv, m::Adj{<:Any, <:AbstractMatrix}) = p * pinv(m)
-# /(m::Adj{<:Any, <:AbstractMatrix}, p::Piv) = m * pinv(p)
-
 
 function getindex(p::Piv, i::Integer, j::Integer) 
     (p.perm[i] == j) ? true : false 

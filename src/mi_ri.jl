@@ -23,12 +23,24 @@ const MiRi{T,M}    = Union{Midiagonal{T,M}, Ridiagonal{T,M}}
 # ===================================
 
 # bypass adjoint and inv
-inv(M::Midiagonal)      = Midiagonal(map(x->inv(cholesky(Sym_or_Hrm(x))), M.data)) 
+inv(M::Midiagonal)  = Midiagonal(map(x->inv(cholesky(Sym_or_Hrm(x))), M.data)) 
+
 adjoint(M::Midiagonal)  = Midiagonal(map(adjoint, M.data)) 
+
+function posdef_inv(M::Midiagonal{T}) where {T} 
+    M′ = map(M.data) do Md 
+        _Md = Sym_or_Hrm(Md)
+        if isposdef(_Md)
+            return inv(cholesky(_Md))
+        else
+            return zeros(T, size(_Md))
+        end
+    end
+    Midiagonal(M′)
+end
 
 # merge products of Midiagonals
 *(M1::Midiagonal, M2::Midiagonal) = Midiagonal(map(*, M1.data, M2.data))
-
 
 # ldiv!
 # ---------------------------------
