@@ -23,7 +23,10 @@ const MiRi{T,M}    = Union{Midiagonal{T,M}, Ridiagonal{T,M}}
 # ===================================
 
 # bypass adjoint and inv
-inv(M::Midiagonal)  = Midiagonal(map(x->inv(cholesky(Sym_or_Hrm(x))), M.data)) 
+# inv(M::Midiagonal)  = Midiagonal(map(x->inv(cholesky(Sym_or_Hrm(x))), M.data)) 
+inv(M::Midiagonal)  = Midiagonal(map(x->inv(factorize(Sym_or_Hrm(x))), M.data)) # testing this new version
+
+pinv(M::Midiagonal)  = Midiagonal(map(x->pinv(Sym_or_Hrm(x)), M.data)) 
 
 adjoint(M::Midiagonal)  = Midiagonal(map(adjoint, M.data)) 
 

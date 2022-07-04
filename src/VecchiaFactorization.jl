@@ -37,10 +37,27 @@ include("adj_inv.jl")
 # ldiv!(w, ::Adj_VF, v)
 
 # * calls out to mul! and ldiv!
-*(VF::VecchiaFactor, w::AbstractVector) = mul!(copy(w), VF, w)
-*(VFᴴ::Adj_VF,       w::AbstractVector) = mul!(copy(w), VFᴴ, w)
-*(iVF::Inv_VF,       w::AbstractVector) = ldiv!(iVF.parent, copy(w))
-*(iVFᴴ::Inv_Adj_VF,  w::AbstractVector) = ldiv!(iVFᴴ.parent, copy(w))
+function *(VF::VecchiaFactor{A}, w::AbstractVector{B}) where {A,B} 
+	T = promote_type(A,B)
+	v = similar(w,T) 
+	mul!(v, VF, w)
+end
+function *(VFᴴ::Adj_VF{A}, w::AbstractVector{B}) where {A,B}
+	T = promote_type(A,B)
+	v = similar(w,T)  
+	mul!(v, VFᴴ, w)
+end
+function *(iVF::Inv_VF{A}, w::AbstractVector{B}) where {A,B} 
+	T = promote_type(A,B)
+	v = similar(w,T)
+	copyto!(v,w)
+	ldiv!(iVF.parent, v)
+end
+function *(iVFᴴ::Inv_Adj_VF{A}, w::AbstractVector{B}) where {A,B} 
+	T = promote_type(A,B)
+	copyto!(v,w)
+	ldiv!(iVFᴴ.parent, v)
+end
 
 # \ calls out to inv * ...
 \(VF::VecchiaFactor, w::AbstractVector) = inv(VF) * w
