@@ -76,7 +76,7 @@ end
     Ǎ⁻¹ = Matrix(R̄' * inv(M̄) * R̄)
     B̌⁻¹ = Matrix(R̃' * inv(M̃) * R̃)
     Č⁻¹ = Matrix(R' * M⁻¹ * R)
-    @test Č⁻¹ ≈ Ǎ⁻¹ + B̌⁻¹ 
+    @test Array(Č⁻¹) ≈ Array(Ǎ⁻¹) + Array(B̌⁻¹) # Č⁻¹ ≈ Ǎ⁻¹ + B̌⁻¹ 
 
 
     T1 = Diagonal(rand(n))
