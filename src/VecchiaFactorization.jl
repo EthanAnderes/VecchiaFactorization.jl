@@ -1,6 +1,6 @@
 module VecchiaFactorization
 
-import Base: size, getindex, permute!, invpermute!, show, rand, randn
+import Base: size, getindex, permute!, invpermute!, show, rand, randn, eltype
 
 using LinearAlgebra # BLAS.set_num_threads(1)
 import LinearAlgebra: mul!, lmul!, ldiv!, \, /, *, inv, pinv, 
@@ -25,6 +25,8 @@ export Ridiagonal, Midiagonal, Inv, Piv, sparse
 ## abstract type VecchiaFactor{T} <: AbstractMatrix{T} end
 ## abstract type VecchiaFactor{T} <: Factorization{T} end
 abstract type VecchiaFactor{T} end
+
+eltype(V::VecchiaFactor{T}) where {T} = T
 
 # Inv and Adj
 # ===========================================

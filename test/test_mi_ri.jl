@@ -49,6 +49,13 @@ using LBblocks
         @inferred Ri' * v
         @inferred Ri \ v 
         @test (Ri \ v) ≈ ldiv!(Ri, copy(v)) rtol = 1e-10
+        @test eltype(Ri) == Float64
+        @test eltype(Mi) == Float64
+        @test eltype(inv(Ri)) == Float64
+        @test eltype(Ri') == Float64
+        @test eltype(inv(Mi)) == Float64
+        @test eltype(Mi') == Float64
+
 
         ## -----
         x = 1:size(Ri,1)
