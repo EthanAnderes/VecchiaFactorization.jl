@@ -117,16 +117,12 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
 		if ic == 1
 			# M[ic] = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]])
 			M[ic] = Σ[blk_indices[ic], blk_indices[ic]] # why does this speed up matrix mult??
-		else 
-			# U = sqrt(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]]))
-			# U = cholesky(Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]])).U # old default
-			U2 = Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]])
-			U = isposdef(U2) ? cholesky(U2).U : sqrt(U2)
-			
-			C 		= Σ[blk_indices[ic], blk_indices[ic-1]] / U
-			R[ic-1] = - C / U'
-			# M[ic]   = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]] - C*C')
-			M[ic] = Σ[blk_indices[ic], blk_indices[ic]] - C*C' # why does this speed up matrix mult??
+		else
+			R[ic-1], M[ic] = getR₀M₁₁_general(
+				Σ[blk_indices[ic-1], blk_indices[ic-1]], 
+				Σ[blk_indices[ic], blk_indices[ic-1]], 
+				Σ[blk_indices[ic], blk_indices[ic]],
+			)
 		end
 	end
 
@@ -146,21 +142,54 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 		if ic == 1
 			# M[ic] = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]'))
 			M[ic] = Σfun.(blk_indices[ic], blk_indices[ic]')  # why does this speed up matrix mult??
-		else 
-			# U = sqrt(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]')))
-			# U = cholesky(Sym_or_Hrm(Σfun.(blk_indices[ic-1], blk_indices[ic-1]'))).U # old default
-			U2 = Sym_or_Hrm(Σ[blk_indices[ic-1], blk_indices[ic-1]])
-			U = isposdef(U2) ? cholesky(U2).U : sqrt(U2)
- 
-			C 		= Σfun.(blk_indices[ic], blk_indices[ic-1]') / U
-			R[ic-1] = - C / U'
-			# M[ic]   = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]') - C*C')
-			M[ic]   = Σfun.(blk_indices[ic], blk_indices[ic]') - C*C'  # why does this speed up matrix mult??
+		else
+			R[ic-1], M[ic] = getR₀M₁₁_general(
+				Σfun.(blk_indices[ic-1], blk_indices[ic-1]'), 
+				Σfun.(blk_indices[ic], blk_indices[ic-1]'), 
+				Σfun.(blk_indices[ic], blk_indices[ic]'),
+			)
 		end
 	end
 
     return Ridiagonal(R), Midiagonal(M), Piv(perm)
 end
+
+
+
+
+function getR₀M₁₁(Σ₀₀, Σ₁₀, Σ₁₁)
+
+    U2   = Sym_or_Hrm(Σ₀₀)
+    U    = isposdef(U2) ? cholesky(U2).U : sqrt(U2)
+    C    = Σ₁₀ / U
+    R₀   = - C / U'
+    M₁₁  = Σ₁₁ - C*C'
+    # M₁₁   = Sym_or_Hrm(Σ₁₁ - C*C')
+
+    return R₀, M₁₁
+end
+
+
+function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁)
+
+    U    = cholesky(Sym_or_Hrm(Σ₀₀)).U
+    C    = Σ₁₀ / U
+    R₀   = - C / U'
+    M₁₁  = Σ₁₁ - C*C'
+
+    return R₀, M₁₁
+end
+
+
+function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
+
+    sΣ₀₀ = Sym_or_Hrm(Σ₀₀)
+    R₀   = - Σ₁₀ / sΣ₀₀
+    M₁₁  = Σ₁₁ + Sym_or_Hrm(R₀ * Σ₁₀')
+
+    return R₀, M₁₁
+end
+
 
 
 Sym_or_Hrm(A::AbstractMatrix{<:Real})    = Symmetric(A)
