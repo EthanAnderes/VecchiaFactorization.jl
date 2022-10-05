@@ -225,18 +225,16 @@ end
 
 ###########
 
-
-function getR₀M₁₁(Σ₀₀, Σ₁₀, Σ₁₁)
-
-    U2   = Sym_or_Hrm(Σ₀₀)
-    U    = isposdef(U2) ? cholesky(U2).U : sqrt(U2)
-    C    = Σ₁₀ / U
-    R₀   = real(- C / U') # real here trys to help when sqrt returns a complex
-    M₁₁  = Σ₁₁ - Sym_or_Hrm(real(C*C'))
-    # M₁₁   = Sym_or_Hrm(Σ₁₁ - C*C')
-
-    return R₀, M₁₁
-end
+## slated for removal.
+# function getR₀M₁₁(Σ₀₀, Σ₁₀, Σ₁₁)
+#     U2   = Sym_or_Hrm(Σ₀₀)
+#     U    = isposdef(U2) ? cholesky(U2).U : sqrt(U2)
+#     C    = Σ₁₀ / U
+#     R₀   = real(- C / U') # real here trys to help when sqrt returns a complex
+#     M₁₁  = Σ₁₁ - Sym_or_Hrm(real(C*C'))
+#     # M₁₁   = Sym_or_Hrm(Σ₁₁ - C*C')
+#     return R₀, M₁₁
+# end
 
 
 function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁)
@@ -245,10 +243,22 @@ function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁)
     C    = Σ₁₀ / U
     R₀   = - C / U'
     M₁₁  = Σ₁₁ - Sym_or_Hrm(C*C')
+    if !isposdef(Sym_or_Hrm(M₁₁))
+    	@warn "Non-positive definite Vecchia block detected and was set to zero."
+    	return R₀, zero(M₁₁)
+    else
+    	return R₀, M₁₁
+    end
+end
+
+
+function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
+
+    R₀   = - Σ₁₀ / Σ₀₀
+    M₁₁  = Σ₁₁ + Sym_or_Hrm(R₀ * Σ₁₀')
 
     return R₀, M₁₁
 end
-
 
 function getR₀M₁₁_bunchkaufman(Σ₀₀, Σ₁₀, Σ₁₁)
 
@@ -259,15 +269,6 @@ function getR₀M₁₁_bunchkaufman(Σ₀₀, Σ₁₀, Σ₁₁)
     C    = Σ₁₀ / U'
     R₀   = - (C / D) / U
     M₁₁  = Σ₁₁ - Sym_or_Hrm(C*pinv(D)*C')
-
-    return R₀, M₁₁
-end
-
-
-function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
-
-    R₀   = - Σ₁₀ / Σ₀₀
-    M₁₁  = Σ₁₁ + Sym_or_Hrm(R₀ * Σ₁₀')
 
     return R₀, M₁₁
 end
