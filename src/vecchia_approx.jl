@@ -64,13 +64,13 @@ function R_M_P end
 
 
 
-function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
-	R, M, P = R_M_P(Σ, blk_sizes, perm)
+function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}; atol=0)
+	R, M, P = R_M_P(Σ, blk_sizes, perm; atol)
     # println("Vecchia Factorization approximation: Pᵀ R⁻¹ M R⁻ᴴ P")
 	return P' * inv(R) * M * inv(R)' * P
 end
-function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
-	R, M, P = R_M_P(Σ, blk_sizes)
+function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}; atol=0)
+	R, M, P = R_M_P(Σ, blk_sizes; atol)
     # println("Vecchia Factorization approximation: R⁻¹ M R⁻ᴴ")
 	return inv(R) * M * inv(R)'
 end
@@ -90,37 +90,37 @@ end
 
 ##
 
-function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
-    R, M, P = R_M_P(Σ, blk_sizes, perm)
-    # preM′ = map(Md -> cholesky(Md).L, M.data)
-    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md,:L)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
-    P' * inv(R) * Midiagonal(preM′) * P
-end
-function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
-    R, M, P = R_M_P(Σ, blk_sizes)
-    # preM′ = map(Md -> cholesky(Md).L, M.data)
-    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md,:L)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
-    inv(R) * Midiagonal(preM′)
-end
+# function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
+#     R, M, P = R_M_P(Σ, blk_sizes, perm)
+#     # preM′ = map(Md -> cholesky(Md).L, M.data)
+#     preM′ = map(Md -> cholesky(Sym_or_Hrm(Md,:L)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
+#     P' * inv(R) * Midiagonal(preM′) * P
+# end
+# function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
+#     R, M, P = R_M_P(Σ, blk_sizes)
+#     # preM′ = map(Md -> cholesky(Md).L, M.data)
+#     preM′ = map(Md -> cholesky(Sym_or_Hrm(Md,:L)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
+#     inv(R) * Midiagonal(preM′)
+# end
+
+# ##
+
+# function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
+#     R, M, P = R_M_P(Σ, blk_sizes, perm)
+#     # preM′ = map(sqrt, M.data)
+#     preM′ = map(x->Matrix(sqrt(Sym_or_Hrm(x))), M.data) # add Sym_or_Hrm since we are removing it by default on construction
+#     P' * inv(R) * Midiagonal(preM′) * P
+# end
+# function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
+#     R, M, P = R_M_P(Σ, blk_sizes)
+#     # preM′ = map(sqrt, M.data)
+#     preM′ = map(x->Matrix(sqrt(Sym_or_Hrm(x))), M.data) # add Sym_or_Hrm since we are removing it by default on construction
+#     inv(R) * Midiagonal(preM′)
+# end
 
 ##
 
-function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
-    R, M, P = R_M_P(Σ, blk_sizes, perm)
-    # preM′ = map(sqrt, M.data)
-    preM′ = map(x->Matrix(sqrt(Sym_or_Hrm(x))), M.data) # add Sym_or_Hrm since we are removing it by default on construction
-    P' * inv(R) * Midiagonal(preM′) * P
-end
-function vecchia_sqrt(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
-    R, M, P = R_M_P(Σ, blk_sizes)
-    # preM′ = map(sqrt, M.data)
-    preM′ = map(x->Matrix(sqrt(Sym_or_Hrm(x))), M.data) # add Sym_or_Hrm since we are removing it by default on construction
-    inv(R) * Midiagonal(preM′)
-end
-
-##
-
-function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes)) where T
+function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes); atol=0) where T
 	LinearAlgebra.checksquare(Σ)
 	@assert isperm(perm)
 
@@ -138,6 +138,7 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
 				Σ[blk_indices[ic-1], blk_indices[ic-1]], 
 				Σ[blk_indices[ic], blk_indices[ic-1]], 
 				Σ[blk_indices[ic], blk_indices[ic]],
+				atol,
 			)
 		end
 	end
@@ -145,7 +146,7 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
     return Ridiagonal(R), Midiagonal(M), Piv(perm)
 end
 
-function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes))
+function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes); atol=0)
 	@assert isperm(perm)
 
 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
@@ -163,6 +164,7 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 				Σfun.(blk_indices[ic-1], blk_indices[ic-1]'), 
 				Σfun.(blk_indices[ic], blk_indices[ic-1]'), 
 				Σfun.(blk_indices[ic], blk_indices[ic]'),
+				atol
 			)
 		end
 	end
@@ -225,19 +227,33 @@ end
 
 ###########
 
-function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁)
-
-    U    = force_chol(Sym_or_Hrm(Σ₀₀,:U)).U
+function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁, atol)
+    U    = force_chol(Sym_or_Hrm(Σ₀₀,:U), atol).U
     C    = Σ₁₀ / U
     R₀   = - C / U'
     M₁₁  = Σ₁₁ - C*C'
     if !isposdef(Sym_or_Hrm(M₁₁))
     	@warn "Non-positive definite Vecchia block detected and was clamped to be positive definite."
-    	return R₀, force_posdef(M₁₁)
+    	return R₀, force_posdef(M₁₁, atol)
     else
     	return R₀, M₁₁
     end
 end
+
+# Testing to see if this works better than the cholesky ??
+# function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁, atol)
+#     U    = force_posdef_sqrt(Sym_or_Hrm(Σ₀₀), atol)
+#     C    = Σ₁₀ / U
+#     R₀   = - C / U'
+#     M₁₁  = Σ₁₁ - C*C'
+#     if !isposdef(Sym_or_Hrm(M₁₁))
+#     	@warn "Non-positive definite Vecchia block detected and was clamped to be positive definite."
+#     	return R₀, force_posdef(M₁₁, atol)
+#     else
+#     	return R₀, M₁₁
+#     end
+# end
+
 
 
 function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
@@ -247,18 +263,3 @@ function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
 
     return R₀, M₁₁
 end
-
-## Slated for removal ...
-# function getR₀M₁₁_bunchkaufman(Σ₀₀, Σ₁₀, Σ₁₁)
-
-#     S = bunchkaufman(Sym_or_Hrm(Σ₀₀,:U), false) 
-#     U = S.U
-#     D = S.D
-#     # Now S = U * D * U'
-#     C    = Σ₁₀ / U'
-#     R₀   = - (C / D) / U
-#     M₁₁  = Σ₁₁ - Sym_or_Hrm(C*pinv(D)*C')
-
-#     return R₀, M₁₁
-# end
-

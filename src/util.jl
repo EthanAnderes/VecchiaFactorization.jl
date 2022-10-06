@@ -55,32 +55,82 @@ end
 
 
 """
-`force_posdef(M::Symmetric{T}, ϵ=10eps(T))`
+`_posdef(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}`
 
 Clamp the eigenvalues less than ϵ
 """
+function _posdef(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
+    Tr  = real(T)
+    F   = eigen(Sym_or_Hrm(M))
+    λs  = F.values
+    λs′ = clamp.(real.(F.values), ϵ, Tr(Inf))
+    M′  = F.vectors * Diagonal(λs′) * F.vectors'
+    # M′  = F.vectors * Diagonal(λs′) / F.vectors
+    return M′
+end
+# _posdef(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
+#     Tr  = real(T)
+#     F   = eigen(Sym_or_Hrm(M), ϵ, Tr(Inf))
+#     M′  = F.vectors * Diagonal(F.values .- ϵ) / F.vectors
+#     M′ += ϵ*I
+#     return Matrix(Sym_or_Hrm(M′))
+# end
+
+"""
+`_posdef_sqrt(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}`
+
+Clamp the eigenvalues less than ϵ and take the square root
+"""
+function _posdef_sqrt(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
+    Tr  = real(T)
+    F   = eigen(Sym_or_Hrm(M))
+    λs  = F.values
+    λs′ = clamp.(real.(F.values), ϵ, Tr(Inf))
+    M′  = F.vectors * Diagonal(sqrt.(λs′)) * F.vectors'
+    # M′  = F.vectors * Diagonal(sqrt.(λs′)) / F.vectors
+    return M′
+end
+
+
+
+"""
+`force_posdef(M::Symmetric{T}, ϵ=10eps(T))`
+
+like `_posdef` but preserves the symmetric or hermitian types
+"""
 function force_posdef(M::Symmetric{T}, ϵ=100eps(T)) where {T<:Real}
-    F   = eigen(M, ϵ, T(Inf))
-    M′  = F.vectors * Diagonal(F.values .- ϵ) / F.vectors
-    M′ += ϵ*I
     uplo = LinearAlgebra.sym_uplo(M.uplo)
-    return Symmetric(M′, uplo)
+    return Symmetric(_posdef(M, ϵ), uplo)
 end
 
 function force_posdef(M::Hermitian{C}, ϵ=100eps(T)) where {T, C<:Complex{T}}
-    F   = eigen(M, ϵ, T(Inf))
-    M′  = F.vectors * Diagonal(F.values .- ϵ) / F.vectors
-    M′ += ϵ*I
     uplo = LinearAlgebra.sym_uplo(M.uplo)
-    return Hermitian(M′, uplo)
+    return Hermitian(_posdef(M, ϵ), uplo)
 end
 
 function force_posdef(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
-    Tr  = real(T)
-    F   = eigen(Sym_or_Hrm(M), ϵ, Tr(Inf))
-    M′  = F.vectors * Diagonal(F.values .- ϵ) / F.vectors
-    M′ += ϵ*I
-    return M′
+    return Matrix(Sym_or_Hrm(_posdef(M, ϵ)))
+end
+
+
+
+"""
+`force_posdef_sqrt(M::Symmetric{T}, ϵ=10eps(T))`
+
+like `_posdef_sqrt` but preserves the symmetric or hermitian types
+"""
+function force_posdef_sqrt(M::Symmetric{T}, ϵ=100eps(T)) where {T<:Real}
+    uplo = LinearAlgebra.sym_uplo(M.uplo)
+    return Symmetric(_posdef_sqrt(M, ϵ), uplo)
+end
+
+function force_posdef_sqrt(M::Hermitian{C}, ϵ=100eps(T)) where {T, C<:Complex{T}}
+    uplo = LinearAlgebra.sym_uplo(M.uplo)
+    return Hermitian(_posdef_sqrt(M, ϵ), uplo)
+end
+
+function force_posdef_sqrt(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
+    return Matrix(Sym_or_Hrm(_posdef_sqrt(M, ϵ)))
 end
 
 
