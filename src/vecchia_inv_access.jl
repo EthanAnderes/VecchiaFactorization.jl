@@ -67,7 +67,7 @@ end
 """
 `instantiate_inv!(X::Matrix, R::Ridiagonal, M::Midiagonal)`
 modifies X to hold the inverse of the corresponding
-Vecchia approximation. 
+Vecchia approximation. Note: currently zeros out any non-posdef block of M
 """
 function instantiate_inv! end
 
@@ -79,11 +79,17 @@ function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) wher
     fill!(X, T(0))
     Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
 
-    L⁻¹M_ic          = inv(cholesky(Sym_or_Hrm(M.data[N])).L)
+    # L⁻¹M_ic  = inv(cholesky(Sym_or_Hrm(M.data[N])).L) # default
+    L⁻¹M_ic    = inv_chol_L(M.data[N])            # !!! testing 
+
+    ## TODO: check that zeroing out is correct for p-inv.
     Σ⁻¹[Block(N,N)] .= L⁻¹M_ic'*L⁻¹M_ic
     for ic in N-1:-1:1
         L⁻¹M_ic₊1 = L⁻¹M_ic # since we move backwards
-        L⁻¹M_ic   = inv(cholesky(Sym_or_Hrm(M.data[ic])).L)
+
+        # L⁻¹M_ic = inv(cholesky(Sym_or_Hrm(M.data[ic])).L) # default
+        L⁻¹M_ic   = inv_chol_L(M.data[ic])             # !!! testing
+
         C         = L⁻¹M_ic₊1 * R.data[ic]
         Σ⁻¹[Block(ic+1,ic)]  .= L⁻¹M_ic₊1' * C
         Σ⁻¹[Block(ic,ic)]    .= L⁻¹M_ic'*L⁻¹M_ic + C'*C

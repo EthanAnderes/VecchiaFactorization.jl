@@ -51,3 +51,66 @@ function initalize_bidiag_lblks(::Type{T}, blk_sizes) where T
     end 
     B 
 end 
+
+
+
+"""
+`force_posdef(M::Symmetric{T}, ϵ=10eps(T))`
+
+Clamp the eigenvalues less than ϵ
+"""
+function force_posdef(M::Symmetric{T}, ϵ=100eps(T)) where {T<:Real}
+    F   = eigen(M, ϵ, T(Inf))
+    M′  = F.vectors * Diagonal(F.values .- ϵ) / F.vectors
+    M′ += ϵ*I
+    uplo = LinearAlgebra.sym_uplo(M.uplo)
+    return Symmetric(M′, uplo)
+end
+
+function force_posdef(M::Hermitian{C}, ϵ=100eps(T)) where {T, C<:Complex{T}}
+    F   = eigen(M, ϵ, T(Inf))
+    M′  = F.vectors * Diagonal(F.values .- ϵ) / F.vectors
+    M′ += ϵ*I
+    uplo = LinearAlgebra.sym_uplo(M.uplo)
+    return Hermitian(M′, uplo)
+end
+
+function force_posdef(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
+    Tr  = real(T)
+    F   = eigen(Sym_or_Hrm(M), ϵ, Tr(Inf))
+    M′  = F.vectors * Diagonal(F.values .- ϵ) / F.vectors
+    M′ += ϵ*I
+    return M′
+end
+
+
+"""
+`force_chol(M::AbstractMatrix{T}, ϵ=10eps(real(T)))`
+
+Clamp the eigenvalues less than ϵ
+"""
+function force_chol(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
+    M′ = Sym_or_Hrm(M)
+    C  = cholesky(M′; check = false)
+    if isposdef(C)
+        return C 
+    else
+        return cholesky(force_posdef(M′, ϵ))
+    end 
+end 
+
+# used in vecchia_inv_access
+inv_chol_L(M)    = inv(force_chol(M).L)
+inv_chol_U(M)    = inv(force_chol(M).U)
+inv_with_chol(M) = inv(force_chol(M))
+
+Sym_or_Hrm(A::AbstractMatrix{<:Real},    uplo=:L) = Symmetric(A, uplo)
+Sym_or_Hrm(A::AbstractMatrix{<:Complex}, uplo=:L) = Hermitian(A, uplo)
+Sym_or_Hrm(A::Symmetric{T}) where {T} = A
+Sym_or_Hrm(A::Hermitian{T}) where {T} = A
+
+Typ_Sym_or_Hrm(::Type{T}) where {T<:Real}     = Symmetric{T, Matrix{T}}
+Typ_Sym_or_Hrm(::Type{T}) where {T<:Complex}  = Hermitian{T, Matrix{T}}
+
+
+

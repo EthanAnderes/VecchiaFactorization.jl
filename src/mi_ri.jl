@@ -254,6 +254,6 @@ end
 
 # an alternative to these is to simply overload map to reconsititue a Midiagonal?
 sqrt(M::Midiagonal)      = Midiagonal(map(sqrt, M.data)) 
-Hermitian(M::Midiagonal) = Midiagonal(map(x->Hermitian(x), M.data)) 
-Symmetric(M::Midiagonal) = Midiagonal(map(x->Symmetric(x), M.data)) 
+Hermitian(M::Midiagonal, uplo=:U) = Midiagonal(map(x->Hermitian(x,uplo), M.data)) 
+Symmetric(M::Midiagonal, uplo=:U) = Midiagonal(map(x->Symmetric(x,uplo), M.data)) 
 cholesky(M::Midiagonal)  = Midiagonal(map(x->cholesky(x).L, M.data)) 

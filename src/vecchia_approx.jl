@@ -93,13 +93,13 @@ end
 function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes, perm)
     # preM′ = map(Md -> cholesky(Md).L, M.data)
-    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
+    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md,:L)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
     P' * inv(R) * Midiagonal(preM′) * P
 end
 function vecchia_chol(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
     R, M, P = R_M_P(Σ, blk_sizes)
     # preM′ = map(Md -> cholesky(Md).L, M.data)
-    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
+    preM′ = map(Md -> cholesky(Sym_or_Hrm(Md,:L)).L, M.data) # add Sym_or_Hrm since we are removing it by default on construction
     inv(R) * Midiagonal(preM′)
 end
 
@@ -225,27 +225,15 @@ end
 
 ###########
 
-## slated for removal.
-# function getR₀M₁₁(Σ₀₀, Σ₁₀, Σ₁₁)
-#     U2   = Sym_or_Hrm(Σ₀₀)
-#     U    = isposdef(U2) ? cholesky(U2).U : sqrt(U2)
-#     C    = Σ₁₀ / U
-#     R₀   = real(- C / U') # real here trys to help when sqrt returns a complex
-#     M₁₁  = Σ₁₁ - Sym_or_Hrm(real(C*C'))
-#     # M₁₁   = Sym_or_Hrm(Σ₁₁ - C*C')
-#     return R₀, M₁₁
-# end
-
-
 function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁)
 
-    U    = cholesky(Sym_or_Hrm(Σ₀₀)).U
+    U    = force_chol(Sym_or_Hrm(Σ₀₀,:U)).U
     C    = Σ₁₀ / U
     R₀   = - C / U'
-    M₁₁  = Σ₁₁ - Sym_or_Hrm(C*C')
+    M₁₁  = Σ₁₁ - C*C'
     if !isposdef(Sym_or_Hrm(M₁₁))
-    	@warn "Non-positive definite Vecchia block detected and was set to zero."
-    	return R₀, zero(M₁₁)
+    	@warn "Non-positive definite Vecchia block detected and was clamped to be positive definite."
+    	return R₀, force_posdef(M₁₁)
     else
     	return R₀, M₁₁
     end
@@ -260,26 +248,17 @@ function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
     return R₀, M₁₁
 end
 
-function getR₀M₁₁_bunchkaufman(Σ₀₀, Σ₁₀, Σ₁₁)
+## Slated for removal ...
+# function getR₀M₁₁_bunchkaufman(Σ₀₀, Σ₁₀, Σ₁₁)
 
-    S = bunchkaufman(Sym_or_Hrm(Σ₀₀), false) 
-    U = S.U
-    D = S.D
-    # Now S = U * D * U'
-    C    = Σ₁₀ / U'
-    R₀   = - (C / D) / U
-    M₁₁  = Σ₁₁ - Sym_or_Hrm(C*pinv(D)*C')
+#     S = bunchkaufman(Sym_or_Hrm(Σ₀₀,:U), false) 
+#     U = S.U
+#     D = S.D
+#     # Now S = U * D * U'
+#     C    = Σ₁₀ / U'
+#     R₀   = - (C / D) / U
+#     M₁₁  = Σ₁₁ - Sym_or_Hrm(C*pinv(D)*C')
 
-    return R₀, M₁₁
-end
-
-
-
-Sym_or_Hrm(A::AbstractMatrix{<:Real})    = Symmetric(A,:U)
-Sym_or_Hrm(A::AbstractMatrix{<:Complex}) = Hermitian(A,:U)
-
-Typ_Sym_or_Hrm(::Type{T}) where {T<:Real}     = Symmetric{T, Matrix{T}}
-Typ_Sym_or_Hrm(::Type{T}) where {T<:Complex}  = Hermitian{T, Matrix{T}}
-
-
+#     return R₀, M₁₁
+# end
 
