@@ -150,9 +150,18 @@ function force_chol(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}
 end 
 
 # used in vecchia_inv_access
-inv_chol_L(M)    = inv(force_chol(M).L)
-inv_chol_U(M)    = inv(force_chol(M).U)
-inv_with_chol(M) = inv(force_chol(M))
+function inv_chol_L(M::AbstractMatrix{T}, atol=100eps(real(T))) where {T}
+    inv(force_chol(M, atol).L)
+end
+
+function inv_chol_U(M::AbstractMatrix{T}, atol=100eps(real(T))) where {T}
+    inv(force_chol(M, atol).U)
+end
+
+function inv_with_chol(M::AbstractMatrix{T}, atol=100eps(real(T))) where {T}
+    inv(force_chol(M, atol))
+end
+
 
 Sym_or_Hrm(A::AbstractMatrix{<:Real},    uplo=:L) = Symmetric(A, uplo)
 Sym_or_Hrm(A::AbstractMatrix{<:Complex}, uplo=:L) = Hermitian(A, uplo)
