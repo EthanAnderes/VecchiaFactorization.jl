@@ -118,23 +118,19 @@ function mul!(rw::AbstractVector, R::A, w::AbstractVector) where {A<:Union{Ridia
     lmul!(R, rw)
 end
 
-function mul!(rw::AbstractVector, M::A, w::AbstractVector) where {A<:Union{Midiagonal, Adj{<:Any,<:Midiagonal}}}
-    mul!(rw, M, w, true, false)
-end
-
-function mul!(rw::AbstractVector, M::A, w::AbstractVector, α::Number, β::Number) where {A<:Midiagonal}
+function mul!(rw::AbstractVector, M::A, w::AbstractVector) where {A<:Midiagonal}
     rwB, wB = block_array(M, rw, w)
     for i = 1:length(wB)
-        mul!(rwB[i], M.data[i], wB[i], α, β)
+        mul!(rwB[i], M.data[i], wB[i])
     end
     return rw
 end
 
-function mul!(rw::AbstractVector, Mᴴ::A, w::AbstractVector, α::Number, β::Number) where {A<:Adj{<:Any,<:Midiagonal}}
+function mul!(rw::AbstractVector, Mᴴ::A, w::AbstractVector) where {A<:Adj{<:Any,<:Midiagonal}}
     M = Mᴴ.parent
     rwB, wB = block_array(M, rw, w)
     for i = 1:length(wB)
-        mul!(rwB[i], M.data[i]', wB[i], α, β)
+        mul!(rwB[i], M.data[i]', wB[i])
     end
     return rw
 end

@@ -15,6 +15,8 @@ using ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
 using BlockArrays: PseudoBlockArray,  Block, BlockArray, undef_blocks,
 blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
 
+using LowRankCholesky
+
 import BlockBandedMatrices # for some reason I need this for Tridiagonal
 
 export Ridiagonal, Midiagonal, Inv, Piv, sparse

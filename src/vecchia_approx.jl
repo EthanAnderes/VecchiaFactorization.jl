@@ -126,15 +126,16 @@ function R_M_P(Σ::AbstractMatrix{T}, blk_sizes::AbstractVector{<:Integer}, perm
 
 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
 	N = length(blk_sizes)
-	# M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
-	M = Vector{Matrix{T}}(undef, N)
+	# M = Vector{Matrix{T}}(undef, N) # default
+	M = Vector{LowRankCov{T}}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
 	for ic in 1:N # loops over the column block index
 		if ic == 1
 			# M[ic] = Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]])
-			M[ic] = Σ[blk_indices[ic], blk_indices[ic]] # why does this speed up matrix mult??
+			# M[ic] = Σ[blk_indices[ic], blk_indices[ic]] # why does this speed up matrix mult??
+			M[ic] = low_rank_cov(Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]],:L);tol=atol) # why does this speed up matrix mult??
 		else
-			R[ic-1], M[ic] = getR₀M₁₁_posdef(
+			R[ic-1], M[ic] = getR₀M₁₁_lowrankchol(
 				Σ[blk_indices[ic-1], blk_indices[ic-1]], 
 				Σ[blk_indices[ic], blk_indices[ic-1]], 
 				Σ[blk_indices[ic], blk_indices[ic]],
@@ -158,9 +159,10 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 	for ic in 1:N # loops over the column block index
 		if ic == 1
 			# M[ic] = Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]'))
-			M[ic] = Σfun.(blk_indices[ic], blk_indices[ic]')  # why does this speed up matrix mult??
+			# M[ic] = Σfun.(blk_indices[ic], blk_indices[ic]')  # why does this speed up matrix mult??
+			M[ic] = low_rank_cov(Sym_or_Hrm(Σfun.(blk_indices[ic], blk_indices[ic]'),:L);tol=atol)  # why does this speed up matrix mult??
 		else
-			R[ic-1], M[ic] = getR₀M₁₁_posdef(
+			R[ic-1], M[ic] = getR₀M₁₁_lowrankchol(
 				Σfun.(blk_indices[ic-1], blk_indices[ic-1]'), 
 				Σfun.(blk_indices[ic], blk_indices[ic-1]'), 
 				Σfun.(blk_indices[ic], blk_indices[ic]'),
@@ -240,21 +242,19 @@ function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁, atol)
     end
 end
 
-# Testing to see if this works better than the cholesky ??
-# function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁, atol)
-#     U    = force_posdef_sqrt(Sym_or_Hrm(Σ₀₀), atol)
-#     C    = Σ₁₀ / U
-#     R₀   = - C / U'
-#     M₁₁  = Σ₁₁ - C*C'
-#     if !isposdef(Sym_or_Hrm(M₁₁))
-#     	@warn "Non-positive definite Vecchia block detected and was clamped to be positive definite."
-#     	return R₀, force_posdef(M₁₁, atol)
-#     else
-#     	return R₀, M₁₁
-#     end
-# end
 
+function getR₀M₁₁_lowrankchol(Σ₀₀, Σ₁₀, Σ₁₁, atol)
+    L    = low_rank_chol(Sym_or_Hrm(Σ₀₀,:L); tol=atol)
+    C    = Σ₁₀ / L'
+    R₀   = - C / L
+    M₁₁  = low_rank_cov(Sym_or_Hrm(Σ₁₁ - C*C',:L); tol=atol)
 
+    if !issuccess(M₁₁)
+    	@warn "rank==$(rank(M₁₁)) < $(size(M₁₁,1))== number of columns"
+    end
+
+	return R₀, M₁₁
+end
 
 function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
 
