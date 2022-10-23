@@ -154,7 +154,8 @@ function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::Abst
 	N = length(blk_sizes)
 	T = typeof(Σfun(1,2)) # This seems brittle. To do it right, check how `map` does it
 	# M = Vector{Typ_Sym_or_Hrm(T)}(undef, N)
-	M = Vector{Matrix{T}}(undef, N)
+	# M = Vector{Matrix{T}}(undef, N)
+	M = Vector{LowRankCov{T}}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
 	for ic in 1:N # loops over the column block index
 		if ic == 1
@@ -250,11 +251,36 @@ function getR₀M₁₁_lowrankchol(Σ₀₀, Σ₁₀, Σ₁₁, atol)
     M₁₁  = low_rank_cov(Sym_or_Hrm(Σ₁₁ - C*C',:L); tol=atol)
 
     if !issuccess(M₁₁)
-    	@warn "rank==$(rank(M₁₁)) < $(size(M₁₁,1))== number of columns"
+    	@warn "issuccess(M₁₁) == false" maxlog=1
     end
 
 	return R₀, M₁₁
 end
+# function getR₀M₁₁_lowrankchol(Σ₀₀, Σ₁₀, Σ₁₁, atol)
+
+#     R₀   = - Σ₁₀ / low_rank_cov(Sym_or_Hrm(Σ₀₀,:L);tol=atol)
+#     M₁₁  = low_rank_cov(Sym_or_Hrm(Σ₁₁ + R₀ * Σ₁₀',:L);tol=atol)
+
+#     if !issuccess(M₁₁)
+#     	@warn "issuccess(M₁₁) == false"
+#     end
+
+# 	return R₀, M₁₁
+# end
+# 
+# function getR₀M₁₁_lowrankchol(Σ₀₀, Σ₁₀, Σ₁₁, atol)
+#     U    = sqrt(Sym_or_Hrm(Σ₀₀,:L))
+#     C    = Σ₁₀ / U
+#     R₀   = - C / U'
+#     M₁₁  = low_rank_cov(Sym_or_Hrm(Σ₁₁ - C*C',:L); tol=atol)
+
+#     if !issuccess(M₁₁)
+#     	@warn "issuccess(M₁₁) == false"
+#     end
+
+# 	return R₀, M₁₁
+# end
+
 
 function getR₀M₁₁_general(Σ₀₀, Σ₁₀, Σ₁₁)
 

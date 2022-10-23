@@ -22,19 +22,20 @@ const MiRi{T,M}    = Union{Midiagonal{T,M}, Ridiagonal{T,M}}
 # Interface for VecchiaFactors
 # ===================================
 
-# bypass adjoint and inv
-# inv(M::Midiagonal)  = Midiagonal(map(x->inv(cholesky(Sym_or_Hrm(x))), M.data)) 
-inv(M::Midiagonal)  = Midiagonal(map(x->inv(factorize(Sym_or_Hrm(x))), M.data)) # testing this new version
+# testing the removal of these methods ... 
+# by doing so it seems to allow more specialization
+# inv(M::Midiagonal)  = Midiagonal(map(x->inv(factorize(Sym_or_Hrm(x))), M.data)) # testing this new version
+# pinv(M::Midiagonal)  = Midiagonal(map(x->pinv(Sym_or_Hrm(x)), M.data)) 
 
-pinv(M::Midiagonal)  = Midiagonal(map(x->pinv(Sym_or_Hrm(x)), M.data)) 
-
-adjoint(M::Midiagonal)  = Midiagonal(map(adjoint, M.data)) 
+adjoint(M::Midiagonal)    = Midiagonal(map(adjoint, M.data)) 
+transpose(M::Midiagonal)  = Midiagonal(map(transpose, M.data)) 
 
 function posdef_inv(M::Midiagonal{T}) where {T} 
     M′ = map(M.data) do Md 
-        _Md = Sym_or_Hrm(Md)
-        if isposdef(_Md)
-            return inv(cholesky(_Md))
+        _Md = Sym_or_Hrm(Matrix(Md))
+        chol_Md = cholesky(_Md; check=false)
+        if issuccess(chol_Md)
+            return inv(chol_Md)
         else
             return zeros(T, size(_Md))
         end
@@ -49,7 +50,8 @@ end
 # ---------------------------------
 
 # inv(M) * w
-function ldiv!(M::A, w::AbstractVector)  where {A<:Midiagonal}
+function ldiv!(M::Midiagonal{T}, w::AbstractVector{Q})  where {T,Q}
+    rw      = similar(w,promote_type(T,Q))
     rwB, wB = block_array(M, rw, w)
     for i = 1:length(wB)
         copyto!(rwB[i], M.data[i] \ wB[i])
@@ -58,8 +60,9 @@ function ldiv!(M::A, w::AbstractVector)  where {A<:Midiagonal}
 end
 
 # inv(M') * w
-function ldiv!(Mᴴ::A, w::AbstractVector) where {A<:Adj{<:Any,<:Midiagonal}}
-    M = Mᴴ.parent
+function ldiv!(Mᴴ::Adj{<:Any,<:Midiagonal{T}}, w::AbstractVector{Q})  where {T,Q}
+    M       = Mᴴ.parent
+    rw      = similar(w,promote_type(T,Q))
     rwB, wB = block_array(M, rw, w)
     for i = 1:length(wB)
         copyto!(rwB[i], M.data[i]' \ wB[i])

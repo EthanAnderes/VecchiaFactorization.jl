@@ -72,6 +72,7 @@ Vecchia approximation. Note: currently zeros out any non-posdef block of M
 function instantiate_inv! end
 
 function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
+    @warn "In instantiate_inv! the entries of Midiagonal to be LowRankCov" maxlog=1
     blk_sizes = block_size(R,1)
     @assert blk_sizes == block_size(M,1)
     N = length(blk_sizes)
@@ -79,21 +80,28 @@ function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) wher
     fill!(X, T(0))
     Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
 
-    # L⁻¹M_ic  = inv(cholesky(Sym_or_Hrm(M.data[N])).L) # default
-    L⁻¹M_ic    = inv_chol_L(M.data[N])            # !!! testing 
+    # L⁻¹M_ic    = inv_chol_L(M.data[N])
+    LM_ic = sqrt(M.data[N])   # !!! testing # if this is a LowRankCov then this will return a LowRankChol 
 
-    ## TODO: check that zeroing out is correct for p-inv.
-    Σ⁻¹[Block(N,N)] .= L⁻¹M_ic'*L⁻¹M_ic
+    
+    # Σ⁻¹[Block(N,N)] .= L⁻¹M_ic'*L⁻¹M_ic
+    Σ⁻¹[Block(N,N)] .= pinv(LLᴴ(LM_ic)) ## !!! testing TODO: check that zeroing out is correct for p-inv.
     for ic in N-1:-1:1
-        L⁻¹M_ic₊1 = L⁻¹M_ic # since we move backwards
+        # L⁻¹M_ic₊1 = L⁻¹M_ic # since we move backwards
+        LM_ic₊1 = LM_ic # since we move backwards# !!! testing
 
-        # L⁻¹M_ic = inv(cholesky(Sym_or_Hrm(M.data[ic])).L) # default
-        L⁻¹M_ic   = inv_chol_L(M.data[ic])             # !!! testing
+        # L⁻¹M_ic   = inv_chol_L(M.data[ic])   
+        LM_ic = sqrt(M.data[ic]) # !!! testing
 
-        C         = L⁻¹M_ic₊1 * R.data[ic]
-        Σ⁻¹[Block(ic+1,ic)]  .= L⁻¹M_ic₊1' * C
-        Σ⁻¹[Block(ic,ic)]    .= L⁻¹M_ic'*L⁻¹M_ic + C'*C
+        # C         = L⁻¹M_ic₊1 * R.data[ic]
+        # Σ⁻¹[Block(ic+1,ic)]  .= L⁻¹M_ic₊1' * C
+        # Σ⁻¹[Block(ic,ic)]    .= L⁻¹M_ic'*L⁻¹M_ic + C'*C
+        # Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
+        C                     = LM_ic₊1 \ R.data[ic]
+        Σ⁻¹[Block(ic+1,ic)]  .= LM_ic₊1' \ C
+        Σ⁻¹[Block(ic,ic)]    .= pinv(LLᴴ(LM_ic)) + C'*C
         Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
+
     end
 
     return X
