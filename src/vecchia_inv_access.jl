@@ -1,5 +1,55 @@
 
 """
+`instantiate_inv!(X::Matrix, R::Ridiagonal, M::Midiagonal)`
+modifies X to hold the inverse of the corresponding
+Vecchia approximation. Note: currently zeros out any non-posdef block of M
+"""
+function instantiate_inv! end
+
+function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
+    @warn "In instantiate_inv! the entries of Midiagonal to be LowRankCov" maxlog=1
+    blk_sizes = block_size(R,1)
+    @assert blk_sizes == block_size(M,1)
+    N = length(blk_sizes)
+
+    fill!(X, T(0))
+    Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
+
+    M_ic  = M.data[N] # if M.data[i] isa LowRankCov then this will return a LowRankCov
+    Σ⁻¹[Block(N,N)] .= pinv(M_ic) # TODO: check that pinv is the correct method here
+    for ic in N-1:-1:1
+        M_ic₊1  = M_ic # since we move backwards
+        M_ic  = M.data[ic] 
+        Σ⁻¹[Block(ic+1,ic)]  .= M_ic₊1 \ R.data[ic]
+        Σ⁻¹[Block(ic,ic)]    .= pinv(M_ic) + R.data[ic]' * Σ⁻¹[Block(ic+1,ic)]
+        Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
+    end
+
+    return X
+end
+
+function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
+    instantiate_inv!(X, R, M)
+    X .= X[P.perm, P.perm]
+    return X
+end
+
+function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
+    n = sum(block_size(R,1))
+    X = Array{T,2}(undef, n, n)
+    return instantiate_inv!(X, R, M)
+end
+
+function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
+    n = sum(block_size(R,1))
+    X = Array{T,2}(undef, n, n)
+    return instantiate_inv!(X, R, M, P)
+end
+
+
+
+
+"""
 If `C = (A⁻¹+B⁻¹)⁻¹` and both `A` and `B` have vecchia decompsitions 
 ```
 A = inv(R̄)* M̄ * inv(R̄')
@@ -13,6 +63,7 @@ C⁻¹ = R' * M⁻¹ * R
 ```
 """
 function vecchia_add_inv(R̄::Ridiagonal{T}, M̄::Midiagonal{T}, R̃::Ridiagonal{T}, M̃::Midiagonal{T}) where {T} 
+    # TODO: convert this to LowRankCov methods
 
     blk_sizes = block_size(M̄,1)
     @assert blk_sizes == block_size(M̃,1)
@@ -41,6 +92,7 @@ end
 
 # blocks of lower diag == LB, diagonal blocks == DB
 ## needs testing
+# TODO: convert this to LowRankCov methods
 function vecchia_from_inv(Σ⁻¹LB::Vector{TL}, Σ⁻¹DB::Vector{TM}) where {T, TL<:AbstractMatrix{T}, TM<:AbstractMatrix{T}} 
 
     blk_sizes = block_size(Midiagonal(Σ⁻¹DB),1)
@@ -63,67 +115,6 @@ function vecchia_from_inv(Σ⁻¹LB::Vector{TL}, Σ⁻¹DB::Vector{TM}) where {T
 end
 
 
-
-"""
-`instantiate_inv!(X::Matrix, R::Ridiagonal, M::Midiagonal)`
-modifies X to hold the inverse of the corresponding
-Vecchia approximation. Note: currently zeros out any non-posdef block of M
-"""
-function instantiate_inv! end
-
-function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
-    @warn "In instantiate_inv! the entries of Midiagonal to be LowRankCov" maxlog=1
-    blk_sizes = block_size(R,1)
-    @assert blk_sizes == block_size(M,1)
-    N = length(blk_sizes)
-
-    fill!(X, T(0))
-    Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
-
-    # L⁻¹M_ic    = inv_chol_L(M.data[N])
-    LM_ic = sqrt(M.data[N])   # !!! testing # if this is a LowRankCov then this will return a LowRankChol 
-
-    
-    # Σ⁻¹[Block(N,N)] .= L⁻¹M_ic'*L⁻¹M_ic
-    Σ⁻¹[Block(N,N)] .= pinv(LLᴴ(LM_ic)) ## !!! testing TODO: check that zeroing out is correct for p-inv.
-    for ic in N-1:-1:1
-        # L⁻¹M_ic₊1 = L⁻¹M_ic # since we move backwards
-        LM_ic₊1 = LM_ic # since we move backwards# !!! testing
-
-        # L⁻¹M_ic   = inv_chol_L(M.data[ic])   
-        LM_ic = sqrt(M.data[ic]) # !!! testing
-
-        # C         = L⁻¹M_ic₊1 * R.data[ic]
-        # Σ⁻¹[Block(ic+1,ic)]  .= L⁻¹M_ic₊1' * C
-        # Σ⁻¹[Block(ic,ic)]    .= L⁻¹M_ic'*L⁻¹M_ic + C'*C
-        # Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
-        C                     = LM_ic₊1 \ R.data[ic]
-        Σ⁻¹[Block(ic+1,ic)]  .= LM_ic₊1' \ C
-        Σ⁻¹[Block(ic,ic)]    .= pinv(LLᴴ(LM_ic)) + C'*C
-        Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
-
-    end
-
-    return X
-end
-
-function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
-    instantiate_inv!(X, R, M)
-    X .= X[P.perm, P.perm]
-    return X
-end
-
-function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
-    n = sum(block_size(R,1))
-    X = Array{T,2}(undef, n, n)
-    return instantiate_inv!(X, R, M)
-end
-
-function instantiate_inv(R::Ridiagonal{T}, M::Midiagonal{T}, P::Piv) where {T} 
-    n = sum(block_size(R,1))
-    X = Array{T,2}(undef, n, n)
-    return instantiate_inv!(X, R, M, P)
-end
 
 
 """
@@ -152,6 +143,7 @@ end
 
 # Low level method that generates just the block diagonals and 
 # block lower off diagonals. All the rest is left undefined to save memory. 
+# TODO: convert this to LowRankCov methods
 function instantiate_inv_bidiag_partial(R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
     blk_sizes = block_size(R,1)
     @assert blk_sizes == block_size(M,1)

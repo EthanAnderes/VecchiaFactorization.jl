@@ -30,6 +30,7 @@ const MiRi{T,M}    = Union{Midiagonal{T,M}, Ridiagonal{T,M}}
 adjoint(M::Midiagonal)    = Midiagonal(map(adjoint, M.data)) 
 transpose(M::Midiagonal)  = Midiagonal(map(transpose, M.data)) 
 
+# slated for removal ... 
 function posdef_inv(M::Midiagonal{T}) where {T} 
     M′ = map(M.data) do Md 
         _Md = Sym_or_Hrm(Matrix(Md))
