@@ -72,7 +72,6 @@ end
 # Can we put this someplace else??
 size(A::InvOrAdj_VF)       = reverse(size(A.parent))
 pinv(A::InvOrAdjOrVecc_VF) = inv(A)
-posdef_inv(V::MatrixOrInvOrAdjOrVecc_VF) = inv(V)
 
 # Chain products by creating a tuple
 # ===========================================

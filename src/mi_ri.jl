@@ -13,7 +13,7 @@ struct Ridiagonal{T,M<:AbstractMatrix{T}} <: VecchiaFactor{T}
     data::Vector{M} # sub diagonal matrices stored along the last dimension
 end
 
-struct Midiagonal{T,M<:AbstractMatrix{T}} <: VecchiaFactor{T}
+struct Midiagonal{T,M<:Union{AbstractMatrix{T}, Factorization{T}}} <: VecchiaFactor{T}
     data::Vector{M} # diagonal matrices stored along the last dimension
 end
 
@@ -29,20 +29,6 @@ const MiRi{T,M}    = Union{Midiagonal{T,M}, Ridiagonal{T,M}}
 
 adjoint(M::Midiagonal)    = Midiagonal(map(adjoint, M.data)) 
 transpose(M::Midiagonal)  = Midiagonal(map(transpose, M.data)) 
-
-# slated for removal ... 
-function posdef_inv(M::Midiagonal{T}) where {T} 
-    M′ = map(M.data) do Md 
-        _Md = Sym_or_Hrm(Matrix(Md))
-        chol_Md = cholesky(_Md; check=false)
-        if issuccess(chol_Md)
-            return inv(chol_Md)
-        else
-            return zeros(T, size(_Md))
-        end
-    end
-    Midiagonal(M′)
-end
 
 # merge products of Midiagonals
 *(M1::Midiagonal, M2::Midiagonal) = Midiagonal(map(*, M1.data, M2.data))
