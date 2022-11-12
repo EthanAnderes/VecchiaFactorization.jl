@@ -85,7 +85,7 @@ end
 # =================================================
 
 # ## Sparse
-sparse(M::Midiagonal) = sparse(mortar(Diagonal(M.data)))
+sparse(M::Midiagonal) = sparse(mortar(Diagonal(Matrix.(M.data))))
 
 function sparse(adjM::Adj{<:Any,<:Midiagonal})
 	adjoint(sparse(adjM.parent))
@@ -101,7 +101,7 @@ end
 
 
 # ## Matrix
-Matrix(M::Midiagonal) = mortar(Diagonal(M.data))
+Matrix(M::Midiagonal) = mortar(Diagonal(Matrix.(M.data)))
 
 Matrix(M::Adj{<:Any,<:Midiagonal}) = adjoint(Matrix(M.parent))
 
