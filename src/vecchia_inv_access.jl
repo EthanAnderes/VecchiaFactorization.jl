@@ -7,7 +7,6 @@ Vecchia approximation. Note: currently zeros out any non-posdef block of M
 function instantiate_inv! end
 
 function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) where {T} 
-    @warn "In instantiate_inv! the entries of Midiagonal to be LowRankCov" maxlog=1
     blk_sizes = block_size(R,1)
     @assert blk_sizes == block_size(M,1)
     N = length(blk_sizes)

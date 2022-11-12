@@ -92,7 +92,7 @@ function R_M_P(
 		end
 	end
     return Ridiagonal(R), Midiagonal(M), Piv(perm)
-    
+
 end
 
 # function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes); atol=0)
@@ -192,9 +192,9 @@ function R_M_P_pdeigen(
 	for ic in 1:N # loops over the column block index
 		if ic == 1
 			M[ic] = pdeigen(
-				Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]],:L);
-				vmin=eig_vmin, 
-				val=eig_val, 
+				Sym_or_Hrm(Σ[blk_indices[ic], blk_indices[ic]],:L),
+				eig_vmin, 
+				eig_val, 
 			) 
 		else
 			R[ic-1], M[ic] = getR₀M₁₁_pdeigen(
@@ -226,7 +226,7 @@ function getR₀M₁₁_pdeigen(Σ₀₀, Σ₁₀, Σ₁₁, chol_atol, eig_vmi
     L    = low_rank_chol(Sym_or_Hrm(Σ₀₀,:L); tol=chol_atol)
     C    = Σ₁₀ / L'
     R₀   = - C / L
-    M₁₁  = pdeigen(Sym_or_Hrm(Σ₁₁ - C*C',:L); vmin=eig_vmin, val=eig_val)
+    M₁₁  = pdeigen(Sym_or_Hrm(Σ₁₁ - C*C',:L), eig_vmin, eig_val)
 	return R₀, M₁₁
 end
 
