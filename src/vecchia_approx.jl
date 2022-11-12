@@ -20,12 +20,11 @@ function vecchia end
 
 function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}; atol=0)
 	R, M, P = R_M_P(Σ, blk_sizes, perm; atol)
-    # println("Vecchia Factorization approximation: Pᵀ R⁻¹ M R⁻ᴴ P")
 	return P' * inv(R) * M * inv(R)' * P
 end
+
 function vecchia(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}; atol=0)
 	R, M, P = R_M_P(Σ, blk_sizes; atol)
-    # println("Vecchia Factorization approximation: R⁻¹ M R⁻ᴴ")
 	return inv(R) * M * inv(R)'
 end
 
@@ -33,15 +32,39 @@ end
 
 function vecchia_general(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer})
 	R, M, P = R_M_P_general(Σ, blk_sizes, perm)
-    # println("Vecchia Factorization approximation: Pᵀ R⁻¹ M R⁻ᴴ P")
 	return P' * inv(R) * M * inv(R)' * P
 end
+
 function vecchia_general(Σ::Union{AbstractMatrix, Function}, blk_sizes::AbstractVector{<:Integer})
 	R, M, P = R_M_P_general(Σ, blk_sizes)
-    # println("Vecchia Factorization approximation: R⁻¹ M R⁻ᴴ")
 	return inv(R) * M * inv(R)'
 end
 
+##
+
+
+function vecchia_pdeigen(
+		Σ::Union{AbstractMatrix, Function}, 
+		blk_sizes::AbstractVector{<:Integer}, 
+		perm::AbstractVector{<:Integer};
+		chol_atol=0,
+		eig_vmin=0,
+		eig_val=0,
+	)
+	R, M, P = R_M_P_pdeigen(Σ, blk_sizes, perm; chol_atol, eig_vmin, eig_val)
+	return P' * inv(R) * M * inv(R)' * P
+end
+
+function vecchia_pdeigen(
+		Σ::Union{AbstractMatrix, Function}, 
+		blk_sizes::AbstractVector{<:Integer};
+		chol_atol=0,
+		eig_vmin=0,
+		eig_val=0,
+	)
+	R, M, P = R_M_P_pdeigen(Σ, blk_sizes; chol_atol, eig_vmin, eig_val)
+	return inv(R) * M * inv(R)'
+end
 
 
 # R_M_P constructs individual factors in the Pivoted Vecchia approximation
@@ -240,7 +263,6 @@ function getR₀M₁₁_lowrankchol(Σ₀₀, Σ₁₀, Σ₁₁, atol)
     end
 	return R₀, M₁₁
 end
-
 
 function getR₀M₁₁_posdef(Σ₀₀, Σ₁₀, Σ₁₁, atol)
     U    = force_chol(Sym_or_Hrm(Σ₀₀,:U), atol).U
