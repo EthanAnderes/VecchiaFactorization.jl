@@ -15,12 +15,12 @@ function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) wher
     Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
 
     M_ic  = M.data[N] # if M.data[i] isa LowRankCov then this will return a LowRankCov
-    Σ⁻¹[Block(N,N)] .= pinv(M_ic) # TODO: check that pinv is the correct method here
+    Σ⁻¹[Block(N,N)] .= Matrix(pinv(M_ic)) # TODO: check that pinv is the correct method here
     for ic in N-1:-1:1
         M_ic₊1  = M_ic # since we move backwards
         M_ic  = M.data[ic] 
         Σ⁻¹[Block(ic+1,ic)]  .= M_ic₊1 \ R.data[ic]
-        Σ⁻¹[Block(ic,ic)]    .= pinv(M_ic) + R.data[ic]' * Σ⁻¹[Block(ic+1,ic)]
+        Σ⁻¹[Block(ic,ic)]    .= Matrix(pinv(M_ic)) + R.data[ic]' * Σ⁻¹[Block(ic+1,ic)]
         Σ⁻¹[Block(ic, ic+1)] .= Σ⁻¹[Block(ic+1,ic)]'
     end
 

@@ -53,6 +53,16 @@ function initalize_bidiag_lblks(::Type{T}, blk_sizes) where T
 end 
 
 
+Sym_or_Hrm(A::AbstractMatrix{<:Real},    uplo=:L) = Symmetric(A, uplo)
+Sym_or_Hrm(A::AbstractMatrix{<:Complex}, uplo=:L) = Hermitian(A, uplo)
+Sym_or_Hrm(A::Symmetric{T}) where {T} = A
+Sym_or_Hrm(A::Hermitian{T}) where {T} = A
+
+Typ_Sym_or_Hrm(::Type{T}) where {T<:Real}     = Symmetric{T, Matrix{T}}
+Typ_Sym_or_Hrm(::Type{T}) where {T<:Complex}  = Hermitian{T, Matrix{T}}
+
+
+# The following is slated for removal
 
 """
 `_posdef(M::AbstractMatrix{T}, ϵ=100eps(real(T))) where {T}`
@@ -161,15 +171,5 @@ end
 function inv_with_chol(M::AbstractMatrix{T}, atol=100eps(real(T))) where {T}
     inv(force_chol(M, atol))
 end
-
-
-Sym_or_Hrm(A::AbstractMatrix{<:Real},    uplo=:L) = Symmetric(A, uplo)
-Sym_or_Hrm(A::AbstractMatrix{<:Complex}, uplo=:L) = Hermitian(A, uplo)
-Sym_or_Hrm(A::Symmetric{T}) where {T} = A
-Sym_or_Hrm(A::Hermitian{T}) where {T} = A
-
-Typ_Sym_or_Hrm(::Type{T}) where {T<:Real}     = Symmetric{T, Matrix{T}}
-Typ_Sym_or_Hrm(::Type{T}) where {T<:Complex}  = Hermitian{T, Matrix{T}}
-
 
 
