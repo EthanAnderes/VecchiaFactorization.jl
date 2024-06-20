@@ -19,7 +19,7 @@ end
 function sparse(R::Ridiagonal{T}) where {T}
     n           = size(R,1)
     block_sizes = block_size(R,1)
-    Rmat = PseudoBlockArray(
+    Rmat = BlockedArray(
         spdiagm(fill(one(T),n)), 
         block_sizes, 
         block_sizes

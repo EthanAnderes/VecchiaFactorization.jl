@@ -153,11 +153,11 @@ end
 # used to prep incoming arrays for lmul! or ldiv!
 function block_array(MR::MiRi, w::AbstractVector)
     bs  = block_size(MR,2)
-    blocks(PseudoBlockArray(w, bs))
+    blocks(BlockedArray(w, bs))
 end
 function block_array(MR::MiRi, w::AbstractVector, v::AbstractVector)
     bs  = block_size(MR,2)
-    blocks(PseudoBlockArray(w, bs)), blocks(PseudoBlockArray(v, bs))
+    blocks(BlockedArray(w, bs)), blocks(BlockedArray(v, bs))
 end
 
 # appears to be useful for generating random Midiagonals or Ridiagonals

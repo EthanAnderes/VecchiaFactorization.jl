@@ -98,7 +98,7 @@ function R_M_P(
 	
 	LinearAlgebra.checksquare(Σ)
 	@assert isperm(perm)
-	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
+	blk_indices = blocks(BlockedArray(perm, blk_sizes))
 	N = length(blk_sizes)
 	M = Vector{LowRankCov{T}}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
@@ -120,7 +120,7 @@ end
 
 # function R_M_P(Σfun::Function, blk_sizes::AbstractVector{<:Integer}, perm::AbstractVector{<:Integer}=1:sum(blk_sizes); atol=0)
 # 	@assert isperm(perm)
-# 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
+# 	blk_indices = blocks(BlockedArray(perm, blk_sizes))
 # 	N = length(blk_sizes)
 # 	T = typeof(Σfun(1,2)) # This seems brittle. To do it right, check how `map` does it
 # 	M = Vector{LowRankCov{T}}(undef, N)
@@ -151,7 +151,7 @@ function R_M_P_general(
 
 	LinearAlgebra.checksquare(Σ)
 	@assert isperm(perm)
-	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
+	blk_indices = blocks(BlockedArray(perm, blk_sizes))
 	N = length(blk_sizes)
 	M = Vector{Matrix{T}}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)
@@ -176,7 +176,7 @@ end
 # 		perm::AbstractVector{<:Integer}=1:sum(blk_sizes)
 # 	)
 # 	@assert isperm(perm)
-# 	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
+# 	blk_indices = blocks(BlockedArray(perm, blk_sizes))
 # 	N = length(blk_sizes)
 # 	T = typeof(Σfun(1,2)) # This seems brittle. To do it right, check how `map` does it
 # 	M = Vector{Matrix{T}}(undef, N)
@@ -208,7 +208,7 @@ function R_M_P_pdeigen(
 	
 	LinearAlgebra.checksquare(Σ)
 	@assert isperm(perm)
-	blk_indices = blocks(PseudoBlockArray(perm, blk_sizes))
+	blk_indices = blocks(BlockedArray(perm, blk_sizes))
 	N = length(blk_sizes)
 	M = Vector{PDEigen{T}}(undef, N)
 	R = Vector{Matrix{T}}(undef, N-1)

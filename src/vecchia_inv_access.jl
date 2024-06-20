@@ -12,7 +12,7 @@ function instantiate_inv!(X::Matrix{T}, R::Ridiagonal{T}, M::Midiagonal{T}) wher
     N = length(blk_sizes)
 
     fill!(X, T(0))
-    Σ⁻¹ = PseudoBlockArray(X, blk_sizes, blk_sizes)
+    Σ⁻¹ = BlockedArray(X, blk_sizes, blk_sizes)
 
     M_ic  = M.data[N] # if M.data[i] isa LowRankCov then this will return a LowRankCov
     Σ⁻¹[Block(N,N)] .= Matrix(pinv(M_ic)) # TODO: check that pinv is the correct method here

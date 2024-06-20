@@ -28,7 +28,7 @@ include("test_vecchia_inv_access.jl")
 #     n      = sum(bsn)
 #     x      = vcat(range(0,4,length=n-100), 4*rand(100))
 #     prm    = sortperm(x)
-#     Σ      = PseudoBlockArray(K.(x, x', θtru), bsn, bsn)
+#     Σ      = BlockedArray(K.(x, x', θtru), bsn, bsn)
 
 #     V = Vecchia(;
 #         diag_blocks=[Σ[Block(i,i)] for i = 1:nblocks],

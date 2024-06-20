@@ -12,7 +12,7 @@ import SparseArrays: sparse
 using ArrayLayouts # supposed to speed up mul! for Symmetric, etc...
 				   # but for small matrices this doesn't appear to help
 
-using BlockArrays: PseudoBlockArray,  Block, BlockArray, undef_blocks,
+using BlockArrays: BlockedArray,  Block, BlockArray, undef_blocks,
 blocks, blocksizes, blockedrange, findblockindex, blockindex, mortar
 
 using LowRankCholesky
